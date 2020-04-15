@@ -1,0 +1,27 @@
+# systemd unit file for the RFM69-Gw to Influx Bridge service
+
+[Unit]
+# Human readable name of the unit
+Description=RFM69-Gw To Influx Bridge
+
+[Service]
+# Command to execute when the service is started
+ExecStart=/usr/local/bin/RFM69GwToInfluxBridge.py
+
+# Disable Python's buffering of STDOUT and STDERR, so that output from the
+# service shows up immediately in systemd's logs
+Environment=PYTHONUNBUFFERED=1
+
+# Automatically restart the service if it crashes
+Restart=on-failure
+
+# Our service will notify systemd once it is up and running
+Type=notify
+
+# Use a dedicated user to run our service
+#User=python_demo_service
+
+[Install]
+# Tell systemd to automatically start this service when the system boots
+# (assuming the service is enabled)
+WantedBy=multi-user.target

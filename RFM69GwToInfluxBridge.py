@@ -1,4 +1,4 @@
-#!/usr/bin/python3
+#!/usr/bin/python3 -u
 
 """ RFM69Gw to InfluxDB Bridge
 This script parses the RFM69Gw published MQTT data and stores the measurements in InfluxDB
@@ -8,11 +8,8 @@ import re
 from typing import NamedTuple
 import paho.mqtt.client as mqtt
 from influxdb import InfluxDBClient
-import signal
-import sys
 import pprint
-
-from datetime import datetime
+from systemd.daemon import notify, Notification
 
 INFLUXDB_ADDRESS = '192.168.0.254'
 INFLUXDB_USER = 'root'
@@ -33,8 +30,6 @@ NODEFUNC_POWER_QUAD = 3
 
 influxdb_client = InfluxDBClient(INFLUXDB_ADDRESS, 8086, INFLUXDB_USER, INFLUXDB_PASSWORD, None)
 
-f=open("debug.log","a+")
-
 class SensorData(NamedTuple):
     sensor: str        # node id on the radio network
     measurement: str   # name of the measurement, e.g. power1, temp, etc
@@ -51,18 +46,9 @@ def on_message(client, userdata, msg):
     # The callback for when a PUBLISH message is received from the server.
     print('MQTT receive: ' + msg.topic + ' ' + str(msg.payload))
     measurements = _parse_mqtt_message(msg.topic, msg.payload.decode('utf-8'))
-#    pprint.pprint(measurements)
+    #pprint.pprint(measurements)
     if measurements is not None:
         _send_sensor_data_to_influxdb(measurements)
-
-#    if sensor_data is not None:
-#        _send_sensor_data_to_influxdb(sensor_data)
-    # Check for debug messages
-#    if msg.topic == 'home/emonD1/rx/6/raw':
-#        ts=datetime.now()
-#        raw=msg.payload.decode('utf-8')
-#        f.write(f'{ts} {raw}\n')
-#        f.flush()
 
 
 def _parse_mqtt_message(topic, payload):
@@ -173,13 +159,11 @@ def main():
     mqtt_client.connect(MQTT_ADDRESS, 1883)
     mqtt_client.loop_forever()
 
-def signal_handler(sig, frame):
-    print('Exiting gracefully')
-    raise SystemExit
-
 
 if __name__ == '__main__':
     print('RFM69Gw to InfluxDB bridge')
-    # catch Ctrl-C
-    #signal.signal(signal.SIGINT, signal_handler)
+
+    # notify systemd that we're up and running
+    notify(Notification.READY)
+
     main()
