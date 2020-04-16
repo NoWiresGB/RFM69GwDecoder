@@ -12,24 +12,24 @@ import pprint
 from systemd.daemon import notify, Notification
 import configparser
 
-INFLUXDB_ADDRESS = '192.168.0.254'
-INFLUXDB_USER = 'root'
-INFLUXDB_PASSWORD = 'root'
-INFLUXDB_DATABASE = 'home_iot'
+influxDbAddress = ''
+influxDbPort = 0
+influxDbUser = ''
+influxDbPassword = ''
+influxDbDatabase = ''
 
-MQTT_ADDRESS = '192.168.0.254'
-MQTT_USER = 'mqttuser'
-MQTT_PASSWORD = 'mqttpassword'
-MQTT_TOPIC = 'RFM69Gw/+/+/+'
-MQTT_REGEX = 'RFM69Gw/([^/]+)/([^/]+)/([^/]+)'
-MQTT_CLIENT_ID = 'RFM69GwToInfluxDBBridge'
+mqttAddress = ''
+mqttPort = 0
+mqttUser = ''
+mqttPassword = ''
+mqttTopic = ''
+mqttRegex = ''
+mqttClientId = ''
 
 # node type constants
 NODEFUNC_POWER_SINGLE = 1
 NODEFUNC_POWER_DOUBLE = 2
 NODEFUNC_POWER_QUAD = 3
-
-influxdb_client = InfluxDBClient(INFLUXDB_ADDRESS, 8086, INFLUXDB_USER, INFLUXDB_PASSWORD, None)
 
 class SensorData(NamedTuple):
     sensor: str        # node id on the radio network
@@ -37,39 +37,93 @@ class SensorData(NamedTuple):
     value: float       # value of the measurmement
 
 def readConfig():
-    global INFLUXDB_ADDRESS
-    global INFLUXDB_USER
-    global INFLUXDB_PASSWORD
-    global INFLUXDB_DATABASE
+    global influxDbAddress
+    global influxDbPort
+    global influxDbUser
+    global influxDbPassword
+    global influxDbDatabase
 
-    global MQTT_ADDRESS
-    global MQTT_USER
-    global MQTT_PASSWORD
-    global MQTT_TOPIC
-    global MQTT_REGEX
+    global mqttAddress
+    global mqttPort
+    global mqttUser
+    global mqttPassword
+    global mqttTopic
+    global mqttRegex
+    global mqttClientId
 
     config = configparser.ConfigParser()
-    config.read("/usr/local/etc/rfm69gwtoinfluxbridge.conf")
+    config.read('/usr/local/etc/rfm69gwtoinfluxbridge.conf')
 
     try:
-        INFLUXDB_ADDRESS = config['influxdb']['address'].encode('ascii','ignore')
+        influxDbAddress = config['influxdb']['address']
     except KeyError:
-        INFLUXDB_ADDRESS = '192.168.0.254'
+        influxDbAddress = '192.168.0.254'
 
     try:
-        INFLUXDB_USER = config['influxdb']['user'].encode('ascii','ignore')
+        influxDbPort = int(config['influxdb']['port'])
     except KeyError:
-        INFLUXDB_USER = 'root'
+        influxDbPort = 8086
+
+    try:
+        influxDbUser = config['influxdb']['user']
+    except KeyError:
+        influxDbUser = 'root'
+
+    try:
+        influxDbPassword = config['influxdb']['password']
+    except KeyError:
+        influxDbPassword = 'root'
+
+    try:
+        influxDbDatabase = config['influxdb']['database']
+    except KeyError:
+        influxDbDatabase = 'home_iot'
+
+    try:
+        mqttAddress = config['mqtt']['address']
+    except KeyError:
+        mqttAddress = '192.168.0.254'
+
+    try:
+        mqttPort = int(config['mqtt']['port'])
+    except KeyError:
+        mqttPort = 1883
+
+    try:
+        mqttUser = config['mqtt']['user']
+    except KeyError:
+        mqttUser = 'mqttuser'
+
+    try:
+        mqttPassword = config['mqtt']['password']
+    except KeyError:
+        mqttPassword = 'mqttpassword'
+
+    try:
+        mqttTopic = config['mqtt']['topic']
+    except KeyError:
+        mqttTopic = 'RFM69Gw/+/+/+'
+
+    try:
+        mqttRegex = config['mqtt']['regex']
+    except KeyError:
+        mqttRegex = 'RFM69Gw/([^/]+)/([^/]+)/([^/]+)'
+
+    try:
+        mqttClientId = config['mqtt']['clientId']
+    except KeyError:
+        mqttClientId = 'RFM69GwToInfluxDBBridge'
+
 
 def on_connect(client, userdata, flags, rc):
     # The callback for when the client receives a CONNACK response from the server.
     print('Connected to MQTT with result code ' + str(rc))
-    client.subscribe(MQTT_TOPIC)
+    client.subscribe(mqttTopic)
 
 
 def on_message(client, userdata, msg):
     # The callback for when a PUBLISH message is received from the server.
-    print('MQTT receive: ' + msg.topic + ' ' + str(msg.payload))
+    #print('MQTT receive: ' + msg.topic + ' ' + str(msg.payload))
     measurements = _parse_mqtt_message(msg.topic, msg.payload.decode('utf-8'))
     #pprint.pprint(measurements)
     if measurements is not None:
@@ -80,7 +134,7 @@ def _parse_mqtt_message(topic, payload):
     # this will store the return values
     rMeas = []
 
-    match = re.match(MQTT_REGEX, topic)
+    match = re.match(mqttRegex, topic)
     if match:
         gwMac = match.group(1)
         radioId = match.group(2)
@@ -162,33 +216,42 @@ def _send_sensor_data_to_influxdb(sensor_data):
         json_body.append({ 'measurement': m.measurement, 'tags': { 'nodeid' : m.sensor }, 'fields' : { 'value' : m.value }})
 
     #pprint.pprint(json_body)
-    influxdb_client.write_points(json_body)
+    influxClient.write_points(json_body)
 
 
 def _init_influxdb_database():
-    databases = influxdb_client.get_list_database()
+    databases = influxClient.get_list_database()
     # create database if it doesn't exist
-    if len(list(filter(lambda x: x['name'] == INFLUXDB_DATABASE, databases))) == 0:
-        influxdb_client.create_database(INFLUXDB_DATABASE)
-    influxdb_client.switch_database(INFLUXDB_DATABASE)
+    if len(list(filter(lambda x: x['name'] == influxDbDatabase, databases))) == 0:
+        influxClient.create_database(influxDbDatabase)
+    influxClient.switch_database(influxDbDatabase)
 
 
 def main():
+    # init InfluxDb
     _init_influxdb_database()
 
-    mqtt_client = mqtt.Client(MQTT_CLIENT_ID)
-    mqtt_client.username_pw_set(MQTT_USER, MQTT_PASSWORD)
+    # init MQTT client
+    mqtt_client = mqtt.Client(mqttClientId)
+    mqtt_client.username_pw_set(mqttUser, mqttPassword)
     mqtt_client.on_connect = on_connect
     mqtt_client.on_message = on_message
 
-    mqtt_client.connect(MQTT_ADDRESS, 1883)
+    # open MQTT connection and start listening to messages
+    mqtt_client.connect(mqttAddress, mqttPort)
     mqtt_client.loop_forever()
 
 
 if __name__ == '__main__':
     print('RFM69Gw to InfluxDB bridge')
 
+    # read the config file
+    readConfig()
+
     # notify systemd that we're up and running
     notify(Notification.READY)
+
+    # open the InfluxDB connection
+    influxClient = InfluxDBClient(influxDbAddress, influxDbPort, influxDbUser, influxDbPassword, None)
 
     main()
