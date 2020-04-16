@@ -10,6 +10,7 @@ import paho.mqtt.client as mqtt
 from influxdb import InfluxDBClient
 import pprint
 from systemd.daemon import notify, Notification
+import configparser
 
 INFLUXDB_ADDRESS = '192.168.0.254'
 INFLUXDB_USER = 'root'
@@ -35,6 +36,30 @@ class SensorData(NamedTuple):
     measurement: str   # name of the measurement, e.g. power1, temp, etc
     value: float       # value of the measurmement
 
+def readConfig():
+    global INFLUXDB_ADDRESS
+    global INFLUXDB_USER
+    global INFLUXDB_PASSWORD
+    global INFLUXDB_DATABASE
+
+    global MQTT_ADDRESS
+    global MQTT_USER
+    global MQTT_PASSWORD
+    global MQTT_TOPIC
+    global MQTT_REGEX
+
+    config = configparser.ConfigParser()
+    config.read("/usr/local/etc/rfm69gwtoinfluxbridge.conf")
+
+    try:
+        INFLUXDB_ADDRESS = config['influxdb']['address'].encode('ascii','ignore')
+    except KeyError:
+        INFLUXDB_ADDRESS = '192.168.0.254'
+
+    try:
+        INFLUXDB_USER = config['influxdb']['user'].encode('ascii','ignore')
+    except KeyError:
+        INFLUXDB_USER = 'root'
 
 def on_connect(client, userdata, flags, rc):
     # The callback for when the client receives a CONNACK response from the server.
