@@ -3,6 +3,8 @@
 [Unit]
 # Human readable name of the unit
 Description=RFM69-Gw To Influx Bridge
+After=mosquitto.service influxdb.service
+Wants=mosquitto.service influxdb.service
 
 [Service]
 # Command to execute when the service is started
