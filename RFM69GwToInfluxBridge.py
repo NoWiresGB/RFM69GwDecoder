@@ -11,6 +11,10 @@ from influxdb import InfluxDBClient
 import pprint
 from systemd.daemon import notify, Notification
 import configparser
+import logging
+from systemd.journal import JournaldLogHandler
+
+logLevel = ''
 
 influxDbAddress = ''
 influxDbPort = 0
@@ -37,6 +41,8 @@ class SensorData(NamedTuple):
     value: float       # value of the measurmement
 
 def readConfig():
+    global logLevel
+
     global influxDbAddress
     global influxDbPort
     global influxDbUser
@@ -51,8 +57,15 @@ def readConfig():
     global mqttRegex
     global mqttClientId
 
+    myLog.info('Reading configuration file')
+
     config = configparser.ConfigParser()
     config.read('/usr/local/etc/rfm69gwtoinfluxbridge.conf')
+
+    try:
+        logLevel = config['main']['loglevel']
+    except KeyError:
+        logLevel = 'ERROR'
 
     try:
         influxDbAddress = config['influxdb']['address']
@@ -117,15 +130,19 @@ def readConfig():
 
 def on_connect(client, userdata, flags, rc):
     # The callback for when the client receives a CONNACK response from the server.
-    print('Connected to MQTT with result code ' + str(rc))
+    myLog.info('Connected to MQTT with result code %s', str(rc))
     client.subscribe(mqttTopic)
 
 
 def on_message(client, userdata, msg):
     # The callback for when a PUBLISH message is received from the server.
-    #print('MQTT receive: ' + msg.topic + ' ' + str(msg.payload))
+    myLog.debug('MQTT receive: %s %s', msg.topic, str(msg.payload))
+
+    # parse received payload
     measurements = _parse_mqtt_message(msg.topic, msg.payload.decode('utf-8'))
-    #pprint.pprint(measurements)
+    myLog.debug('Parsed measurements: %s', pprint.pformat(measurements))
+
+    # write the measurements into the database
     if measurements is not None:
         _send_sensor_data_to_influxdb(measurements)
 
@@ -211,11 +228,14 @@ def _parse_mqtt_message(topic, payload):
 
 
 def _send_sensor_data_to_influxdb(sensor_data):
+    # construct the JSON
     json_body = []
     for m in sensor_data:
         json_body.append({ 'measurement': m.measurement, 'tags': { 'nodeid' : m.sensor }, 'fields' : { 'value' : m.value }})
 
-    #pprint.pprint(json_body)
+    myLog.debug('Writing JSON to DB: %s', pprint.pformat(json_body))
+
+    # write measurements to the database
     influxClient.write_points(json_body)
 
 
@@ -223,8 +243,12 @@ def _init_influxdb_database():
     databases = influxClient.get_list_database()
     # create database if it doesn't exist
     if len(list(filter(lambda x: x['name'] == influxDbDatabase, databases))) == 0:
+        myLog.warning("Database doesn't exists - will create it")
         influxClient.create_database(influxDbDatabase)
+
+    # switch database
     influxClient.switch_database(influxDbDatabase)
+    myLog.info('Database selected')
 
 
 def main():
@@ -243,10 +267,27 @@ def main():
 
 
 if __name__ == '__main__':
-    print('RFM69Gw to InfluxDB bridge')
+    # get an instance of the logger object
+    myLog = logging.getLogger('RFM69GwToInflux')
+
+    # instantiate the JournaldLogHandler to hook into systemd
+    journald_handler = JournaldLogHandler()
+
+    # set a formatter to include the level name
+    journald_handler.setFormatter(logging.Formatter('[%(levelname)s] %(message)s'))
+
+    # add the journald handler to the current logger
+    myLog.addHandler(journald_handler)
+
+    # temporarily set the loglevel to INFO, so the first message is definitely logged
+    myLog.setLevel(logging.INFO)
+    myLog.info('RFM69Gw to InfluxDB bridge')
 
     # read the config file
     readConfig()
+
+    # set loglevel
+    myLog.setLevel(logging.getLevelName(logLevel))
 
     # notify systemd that we're up and running
     notify(Notification.READY)
