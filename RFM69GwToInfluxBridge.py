@@ -34,6 +34,7 @@ mqttClientId = ''
 NODEFUNC_POWER_SINGLE = 1
 NODEFUNC_POWER_DOUBLE = 2
 NODEFUNC_POWER_QUAD = 3
+NODEFUNC_TEMP_RH = 4
 
 class SensorData(NamedTuple):
     sensor: str        # node id on the radio network
@@ -217,6 +218,16 @@ def _parse_mqtt_message(topic, payload):
             vrmsHex = payload[24:26] + payload[22:24]
             vrms = int(vrmsHex, 16) / 10
             rMeas.append(SensorData(radioId, 'vrms', vrms))
+
+            return rMeas
+        elif (sensType == NODEFUNC_TEMP_RH):
+            tempHex = payload[8:10] + payload[6:8]
+            temp = int(tempHex, 16) / 100
+            rMeas.append(SensorData(radioId, 'temp', temp))
+
+            rhHex = payload[12:14] + payload[10:12]
+            rh = int(rhHex, 16) / 100
+            rMeas.append(SensorData(radioId, 'rh', rh))
 
             return rMeas
         else:
