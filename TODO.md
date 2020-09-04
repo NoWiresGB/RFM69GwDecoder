@@ -1,4 +1,3 @@
-* add logging with various levels
 * add optional RSSI logging
 * reload config with USR1 signal
 * move node type constants to a config file
