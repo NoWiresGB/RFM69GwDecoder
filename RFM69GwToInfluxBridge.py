@@ -9,10 +9,9 @@ from typing import NamedTuple
 import paho.mqtt.client as mqtt
 from influxdb import InfluxDBClient
 import pprint
-from systemd.daemon import notify, Notification
 import configparser
 import logging
-from systemd.journal import JournaldLogHandler
+import sys
 
 logLevel = ''
 
@@ -61,7 +60,7 @@ def readConfig():
     myLog.info('Reading configuration file')
 
     config = configparser.ConfigParser()
-    config.read('/usr/local/etc/rfm69gwtoinfluxbridge.conf')
+    config.read('/etc/rfm69gwtoinfluxbridge.conf')
 
     try:
         logLevel = config['main']['loglevel']
@@ -278,20 +277,20 @@ def main():
 
 
 if __name__ == '__main__':
+    # check the command line parameters
+    if len(sys.argv) > 1 and sys.argv[1] == 'config':
+        c = open('/etc/rfm69gwtoinfluxbridge.conf.default', 'r')
+        lines = c.readlines()
+        for l in lines:
+            print(l.strip())
+        c.close()
+        exit()
+
     # get an instance of the logger object
     myLog = logging.getLogger('RFM69GwToInflux')
 
-    # instantiate the JournaldLogHandler to hook into systemd
-    journald_handler = JournaldLogHandler()
-
-    # set a formatter to include the level name
-    journald_handler.setFormatter(logging.Formatter('[%(levelname)s] %(message)s'))
-
-    # add the journald handler to the current logger
-    myLog.addHandler(journald_handler)
-
-    # temporarily set the loglevel to INFO, so the first message is definitely logged
-    myLog.setLevel(logging.INFO)
+    # set loglevel and log format
+    logging.basicConfig(format='%(asctime)s [%(levelname)s] %(message)s', level=logging.INFO)
     myLog.info('RFM69Gw to InfluxDB bridge')
 
     # read the config file
@@ -299,9 +298,6 @@ if __name__ == '__main__':
 
     # set loglevel
     myLog.setLevel(logging.getLevelName(logLevel))
-
-    # notify systemd that we're up and running
-    notify(Notification.READY)
 
     # open the InfluxDB connection
     influxClient = InfluxDBClient(influxDbAddress, influxDbPort, influxDbUser, influxDbPassword, None)
