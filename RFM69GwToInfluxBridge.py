@@ -228,6 +228,10 @@ def _parse_mqtt_message(topic, payload):
             rh = int(rhHex, 16) / 100
             rMeas.append(SensorData(radioId, 'rh', rh))
 
+            rhHex = payload[12:14] + payload[10:12]
+            vbatt = int(rhHex, 16)
+            rMeas.append(SensorData(radioId, 'vbatt', vbatt))
+
             return rMeas
         else:
             # not sure what to do
