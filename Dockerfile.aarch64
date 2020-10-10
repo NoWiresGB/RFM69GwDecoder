@@ -1,8 +1,10 @@
-FROM balenalib/amd64-alpine:3.12
+FROM balenalib/aarch64-alpine:3.12
 
 ADD RFM69GwToInfluxBridge.py /bin/
 ADD rfm69gwtoinfluxbridge.conf /etc/
 ADD rfm69gwtoinfluxbridge.conf /etc/rfm69gwtoinfluxbridge.conf.default
+
+RUN [ "cross-build-start" ]
 
 RUN install_packages python3 py3-pip
 
@@ -11,5 +13,7 @@ ADD influxdb-5.3.0-py2.py3-none-any.whl /tmp
 RUN pip install --find-links /tmp/ influxdb
 
 RUN pip install paho.mqtt
+
+RUN [ "cross-build-end" ]  
 
 CMD ["/usr/bin/python3", "/bin/RFM69GwToInfluxBridge.py"]
