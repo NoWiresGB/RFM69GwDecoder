@@ -223,7 +223,7 @@ def _parse_mqtt_message(topic, payload):
             return rMeas
         elif (sensType == NODEFUNC_TEMP_RH):
             tempHex = payload[8:10] + payload[6:8]
-            temp = struct.unpack('>h', bytes.fromhex(tempHex)) / 100
+            temp = struct.unpack('>h', bytes.fromhex(tempHex))[0] / 100
             rMeas.append(SensorData(radioId, 'temp', temp))
 
             rhHex = payload[12:14] + payload[10:12]
