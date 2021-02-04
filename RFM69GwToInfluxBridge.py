@@ -155,103 +155,107 @@ def _parse_mqtt_message(topic, payload):
 
     match = re.match(mqttRegex, topic)
     if match:
-        gwMac = match.group(1)
-        radioId = match.group(2)
-        data = match.group(3)
-        # Sensors have 'sens' in their name
-        if 'payload' not in data:
-            #print('Not payload')
-            return None
+        try:
+            gwMac = match.group(1)
+            radioId = match.group(2)
+            data = match.group(3)
+            # Sensors have 'sens' in their name
+            if 'payload' not in data:
+                #print('Not payload')
+                return None
 
-        #print('+ GW MAC: ' + gwMac + '\n+ Radio ID: ' + radioId + '\n+ Payload: ' + data)
+            #print('+ GW MAC: ' + gwMac + '\n+ Radio ID: ' + radioId + '\n+ Payload: ' + data)
 
-        # process payload
-        # first get the radio ID
-        #print('>> processed data')
-        radioIdHex = payload[2:4] + payload[0:2]
-        radioId = int(radioIdHex, 16)
+            # process payload
+            # first get the radio ID
+            #print('>> processed data')
+            radioIdHex = payload[2:4] + payload[0:2]
+            radioId = int(radioIdHex, 16)
 
-        sensTypeHex = payload[4:6]
-        sensType = int(sensTypeHex, 16)
+            sensTypeHex = payload[4:6]
+            sensType = int(sensTypeHex, 16)
 
-        # process the rest of the payload based on sensor type
-        if (sensType == NODEFUNC_POWER_SINGLE):
-            powerHex = payload[8:10] + payload[6:8]
-            power = int(powerHex, 16)
-            vrmsHex = payload[12:14] + payload[10:12]
-            vrms = int(vrmsHex, 16) / 10
+            # process the rest of the payload based on sensor type
+            if (sensType == NODEFUNC_POWER_SINGLE):
+                powerHex = payload[8:10] + payload[6:8]
+                power = int(powerHex, 16)
+                vrmsHex = payload[12:14] + payload[10:12]
+                vrms = int(vrmsHex, 16) / 10
 
-            rMeas.append(SensorData(radioId, 'power1', power))
-            rMeas.append(SensorData(radioId, 'vrms', vrms))
+                rMeas.append(SensorData(radioId, 'power1', power))
+                rMeas.append(SensorData(radioId, 'vrms', vrms))
 
-            return rMeas
-        elif (sensType == NODEFUNC_POWER_DOUBLE):
-            powerHex = payload[8:10] + payload[6:8]
-            power = int(powerHex, 16)
-            rMeas.append(SensorData(radioId, 'power1', power))
+                return rMeas
+            elif (sensType == NODEFUNC_POWER_DOUBLE):
+                powerHex = payload[8:10] + payload[6:8]
+                power = int(powerHex, 16)
+                rMeas.append(SensorData(radioId, 'power1', power))
 
-            powerHex = payload[12:14] + payload[10:12]
-            power = int(powerHex, 16)
-            rMeas.append(SensorData(radioId, 'power2', power))
+                powerHex = payload[12:14] + payload[10:12]
+                power = int(powerHex, 16)
+                rMeas.append(SensorData(radioId, 'power2', power))
 
-            vrmsHex = payload[16:18] + payload[14:16]
-            vrms = int(vrmsHex, 16) / 10
-            rMeas.append(SensorData(radioId, 'vrms', vrms))
+                vrmsHex = payload[16:18] + payload[14:16]
+                vrms = int(vrmsHex, 16) / 10
+                rMeas.append(SensorData(radioId, 'vrms', vrms))
 
-            return rMeas
-        elif (sensType == NODEFUNC_POWER_QUAD):
-            powerHex = payload[8:10] + payload[6:8]
-            power = int(powerHex, 16)
-            rMeas.append(SensorData(radioId, 'power1', power))
+                return rMeas
+            elif (sensType == NODEFUNC_POWER_QUAD):
+                powerHex = payload[8:10] + payload[6:8]
+                power = int(powerHex, 16)
+                rMeas.append(SensorData(radioId, 'power1', power))
 
-            powerHex = payload[12:14] + payload[10:12]
-            power = int(powerHex, 16)
-            rMeas.append(SensorData(radioId, 'power2', power))
+                powerHex = payload[12:14] + payload[10:12]
+                power = int(powerHex, 16)
+                rMeas.append(SensorData(radioId, 'power2', power))
 
-            powerHex = payload[16:18] + payload[14:16]
-            power = int(powerHex, 16)
-            rMeas.append(SensorData(radioId, 'power3', power))
+                powerHex = payload[16:18] + payload[14:16]
+                power = int(powerHex, 16)
+                rMeas.append(SensorData(radioId, 'power3', power))
 
-            powerHex = payload[20:22] + payload[18:20]
-            power = int(powerHex, 16)
-            rMeas.append(SensorData(radioId, 'power4', power))
+                powerHex = payload[20:22] + payload[18:20]
+                power = int(powerHex, 16)
+                rMeas.append(SensorData(radioId, 'power4', power))
 
-            vrmsHex = payload[24:26] + payload[22:24]
-            vrms = int(vrmsHex, 16) / 10
-            rMeas.append(SensorData(radioId, 'vrms', vrms))
+                vrmsHex = payload[24:26] + payload[22:24]
+                vrms = int(vrmsHex, 16) / 10
+                rMeas.append(SensorData(radioId, 'vrms', vrms))
 
-            return rMeas
-        elif (sensType == NODEFUNC_TEMP_RH):
-            tempHex = payload[8:10] + payload[6:8]
-            temp = struct.unpack('>h', bytes.fromhex(tempHex))[0] / 100
-            rMeas.append(SensorData(radioId, 'temp', temp))
+                return rMeas
+            elif (sensType == NODEFUNC_TEMP_RH):
+                tempHex = payload[8:10] + payload[6:8]
+                temp = struct.unpack('>h', bytes.fromhex(tempHex))[0] / 100
+                rMeas.append(SensorData(radioId, 'temp', temp))
 
-            rhHex = payload[12:14] + payload[10:12]
-            rh = int(rhHex, 16) / 100
-            rMeas.append(SensorData(radioId, 'rh', rh))
+                rhHex = payload[12:14] + payload[10:12]
+                rh = int(rhHex, 16) / 100
+                rMeas.append(SensorData(radioId, 'rh', rh))
 
-            rhHex = payload[16:18] + payload[14:16]
-            vbatt = int(rhHex, 16)
-            rMeas.append(SensorData(radioId, 'vbatt', vbatt))
+                rhHex = payload[16:18] + payload[14:16]
+                vbatt = int(rhHex, 16)
+                rMeas.append(SensorData(radioId, 'vbatt', vbatt))
 
-            return rMeas
-        elif (sensType == NODEFUNC_TEMP_PRESSURE):
-            tempHex = payload[8:10] + payload[6:8]
-            temp = struct.unpack('>h', bytes.fromhex(tempHex))[0] / 100
-            rMeas.append(SensorData(radioId, 'temp', temp))
+                return rMeas
+            elif (sensType == NODEFUNC_TEMP_PRESSURE):
+                tempHex = payload[8:10] + payload[6:8]
+                temp = struct.unpack('>h', bytes.fromhex(tempHex))[0] / 100
+                rMeas.append(SensorData(radioId, 'temp', temp))
 
-            rhHex = payload[16:18] + payload[14:16] + payload[12:14] + payload[10:12]
-            pressure = int(rhHex, 16) / 100
-            rMeas.append(SensorData(radioId, 'pressure', rh))
+                rhHex = payload[16:18] + payload[14:16] + payload[12:14] + payload[10:12]
+                pressure = int(rhHex, 16) / 100
+                rMeas.append(SensorData(radioId, 'pressure', pressure))
 
-            rhHex = payload[16:18] + payload[14:16]
-            vbatt = int(rhHex, 16)
-            rMeas.append(SensorData(radioId, 'vbatt', vbatt))
+                rhHex = payload[16:18] + payload[14:16]
+                vbatt = int(rhHex, 16)
+                rMeas.append(SensorData(radioId, 'vbatt', vbatt))
 
-            return rMeas
-        else:
-            # not sure what to do
-            return None
+                return rMeas
+            else:
+                # not sure what to do
+                return None
+        except:
+            # handle exceptions
+            myLog.error('Error while processing message: %s - %s', topic, payload);
     else:
         #print('No match')
         return None
