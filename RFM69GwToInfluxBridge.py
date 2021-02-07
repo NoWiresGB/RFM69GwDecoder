@@ -252,11 +252,11 @@ def _parse_mqtt_message(topic, payload):
                 return rMeas
             else:
                 # not sure what to do
-                myLog.error('Unknown sensor type received: %s - %s', topic, payload);
+                myLog.error('Unknown sensor type received: %s - %s', topic, payload)
                 return None
         except:
             # handle exceptions
-            myLog.error('Error while processing message: %s - %s', topic, payload);
+            myLog.error('Error while processing message: %s - %s', topic, payload)
     else:
         #print('No match')
         return None
