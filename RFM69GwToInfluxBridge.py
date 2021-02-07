@@ -252,6 +252,7 @@ def _parse_mqtt_message(topic, payload):
                 return rMeas
             else:
                 # not sure what to do
+                myLog.error('Unknown sensor type received: %s - %s', topic, payload);
                 return None
         except:
             # handle exceptions
