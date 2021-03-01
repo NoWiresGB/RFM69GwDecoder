@@ -270,8 +270,11 @@ def _send_sensor_data_to_influxdb(sensor_data):
 
     myLog.debug('Writing JSON to DB: %s', pprint.pformat(json_body))
 
-    # write measurements to the database
-    influxClient.write_points(json_body)
+    try:
+        # write measurements to the database
+        influxClient.write_points(json_body)
+    except:
+        myLog.error("Exception while writing data to database")
 
 
 def _init_influxdb_database():
