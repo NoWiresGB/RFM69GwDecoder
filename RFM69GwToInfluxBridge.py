@@ -292,6 +292,7 @@ def _init_influxdb_database():
             # switch database
             influxClient.switch_database(influxDbDatabase)
             myLog.info('Database selected')
+            initialised = True
         except:
             myLog.error('Database communication issue, retrying in 5 seconds')
             time.sleep(5)
