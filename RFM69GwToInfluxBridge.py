@@ -37,6 +37,7 @@ NODEFUNC_POWER_DOUBLE = 2
 NODEFUNC_POWER_QUAD = 3
 NODEFUNC_TEMP_RH = 4
 NODEFUNC_TEMP_PRESSURE = 5
+NODEFUNC_TRIGGER = 6
 
 class SensorData(NamedTuple):
     sensor: str        # node id on the radio network
@@ -247,6 +248,16 @@ def _parse_mqtt_message(topic, payload):
                 rMeas.append(SensorData(radioId, 'pressure', pressure))
 
                 rhHex = payload[16:18] + payload[14:16]
+                vbatt = int(rhHex, 16)
+                rMeas.append(SensorData(radioId, 'vbatt', vbatt))
+
+                return rMeas
+            elif (sensType == NODEFUNC_TRIGGER):
+                rhHex = payload[6:8]
+                trigger = int(rhHex, 16)
+                rMeas.append(SensorData(radioId, 'trigger', trigger))
+
+                rhHex = payload[10:12] + payload[8:10]
                 vbatt = int(rhHex, 16)
                 rMeas.append(SensorData(radioId, 'vbatt', vbatt))
 
