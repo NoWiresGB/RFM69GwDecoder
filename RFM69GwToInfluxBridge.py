@@ -253,11 +253,11 @@ def _parse_mqtt_message(topic, payload):
 
                 return rMeas
             elif (sensType == NODEFUNC_TRIGGER):
-                rhHex = payload[8:10]
+                rhHex = payload[6:8]
                 trigger = int(rhHex, 16)
                 rMeas.append(SensorData(radioId, 'trigger', trigger))
 
-                rhHex = payload[12:14] + payload[10:12]
+                rhHex = payload[10:12] + payload[8:10]
                 vbatt = int(rhHex, 16)
                 rMeas.append(SensorData(radioId, 'vbatt', vbatt))
 
