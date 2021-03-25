@@ -13,6 +13,7 @@ import configparser
 import logging
 import sys
 import struct
+import time
 
 logLevel = ''
 
@@ -270,20 +271,31 @@ def _send_sensor_data_to_influxdb(sensor_data):
 
     myLog.debug('Writing JSON to DB: %s', pprint.pformat(json_body))
 
-    # write measurements to the database
-    influxClient.write_points(json_body)
+    try:
+        # write measurements to the database
+        influxClient.write_points(json_body)
+    except:
+        myLog.error("Exception while writing data to database")
 
 
 def _init_influxdb_database():
-    databases = influxClient.get_list_database()
-    # create database if it doesn't exist
-    if len(list(filter(lambda x: x['name'] == influxDbDatabase, databases))) == 0:
-        myLog.warning("Database doesn't exists - will create it")
-        influxClient.create_database(influxDbDatabase)
+    initialised = False
 
-    # switch database
-    influxClient.switch_database(influxDbDatabase)
-    myLog.info('Database selected')
+    while not initialised:
+        try:
+            databases = influxClient.get_list_database()
+            # create database if it doesn't exist
+            if len(list(filter(lambda x: x['name'] == influxDbDatabase, databases))) == 0:
+                myLog.warning("Database doesn't exists - will create it")
+                influxClient.create_database(influxDbDatabase)
+
+            # switch database
+            influxClient.switch_database(influxDbDatabase)
+            myLog.info('Database selected')
+            initialised = True
+        except:
+            myLog.error('Database communication issue, retrying in 5 seconds')
+            time.sleep(5)
 
 
 def main():
