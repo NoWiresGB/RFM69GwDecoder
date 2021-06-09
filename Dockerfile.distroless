@@ -8,4 +8,9 @@ COPY requirements.txt /app/
 
 RUN pip3 install -r /app/requirements.txt
 
-CMD ["/usr/local/bin/python3","/app/RFM69GwToInfluxBridge.py"]
+FROM gcr.io/distroless/python3
+COPY --from=build /app /app
+COPY --from=build /usr/local/lib/python3.7/site-packages/ /usr/lib/python3.7/.
+WORKDIR /app
+
+CMD ["/app/RFM69GwToInfluxBridge.py"]

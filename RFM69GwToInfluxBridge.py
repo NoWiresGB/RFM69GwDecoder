@@ -1,5 +1,7 @@
 #!/usr/bin/python3 -u
 
+# -*- coding: latin-1 -*-
+
 """ RFM69Gw to InfluxDB Bridge
 This script parses the RFM69Gw published MQTT data and stores the measurements in InfluxDB
 """
@@ -64,7 +66,7 @@ def readConfig():
     myLog.info('Reading configuration file')
 
     config = configparser.ConfigParser()
-    config.read('/etc/rfm69gwtoinfluxbridge.conf')
+    config.read('/app/rfm69gwtoinfluxbridge.conf')
 
     try:
         logLevel = config['main']['loglevel']

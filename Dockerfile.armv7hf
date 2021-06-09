@@ -1,14 +1,15 @@
 FROM balenalib/armv7hf-alpine:3.12
 
-ADD RFM69GwToInfluxBridge.py /bin/
-ADD rfm69gwtoinfluxbridge.conf /etc/
-ADD rfm69gwtoinfluxbridge.conf /etc/rfm69gwtoinfluxbridge.conf.default
+WORKDIR /app
+COPY RFM69GwToInfluxBridge.py /app/
+COPY rfm69gwtoinfluxbridge.conf /app/
+COPY rfm69gwtoinfluxbridge.conf /app/rfm69gwtoinfluxbridge.conf.default
+COPY requirements.txt /app/
 
 RUN [ "cross-build-start" ]
 
-RUN install_packages python3 py3-pip
-
-RUN pip install influxdb paho.mqtt
+RUN install_packages python3 py3-pip \
+    && pip3 install -r /app/requirements.txt
 
 RUN [ "cross-build-end" ]  
 
