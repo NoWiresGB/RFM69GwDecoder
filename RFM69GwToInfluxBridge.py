@@ -359,7 +359,8 @@ if __name__ == '__main__':
     # open the InfluxDB connection
     influxClient = InfluxDBClient(influxDbAddress, influxDbPort, influxDbUser, influxDbPassword, None)
 
-    # add ctrl+c handler
+    # add INT and TERM handlers
     signal.signal(signal.SIGINT, signal_handler)
+    signal.signal(signal.SIGTERM, signal_handler)
 
     main()
