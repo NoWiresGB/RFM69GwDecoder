@@ -16,6 +16,7 @@ import logging
 import sys
 import struct
 import time
+import signal
 
 logLevel = ''
 
@@ -316,6 +317,7 @@ def main():
     _init_influxdb_database()
 
     # init MQTT client
+    global mqtt_client
     mqtt_client = mqtt.Client(mqttClientId)
     mqtt_client.username_pw_set(mqttUser, mqttPassword)
     mqtt_client.on_connect = on_connect
@@ -324,6 +326,11 @@ def main():
     # open MQTT connection and start listening to messages
     mqtt_client.connect(mqttAddress, mqttPort)
     mqtt_client.loop_forever()
+
+def signal_handler(sig, frame):
+    myLog.info("Stopping gracefully")
+    mqtt_client.loop_stop()
+    sys.exit(0)
 
 
 if __name__ == '__main__':
@@ -351,5 +358,8 @@ if __name__ == '__main__':
 
     # open the InfluxDB connection
     influxClient = InfluxDBClient(influxDbAddress, influxDbPort, influxDbUser, influxDbPassword, None)
+
+    # add ctrl+c handler
+    signal.signal(signal.SIGINT, signal_handler)
 
     main()
