@@ -13,4 +13,4 @@ RUN install_packages python3 py3-pip \
 
 RUN [ "cross-build-end" ]  
 
-CMD ["/usr/bin/python3", "/apps/RFM69GwToInfluxBridge.py"]
+CMD ["/usr/bin/python3", "/app/RFM69GwToInfluxBridge.py"]
