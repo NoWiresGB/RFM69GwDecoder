@@ -1,5 +1,7 @@
 #!/usr/bin/python3 -u
 
+# -*- coding: latin-1 -*-
+
 """ RFM69Gw to InfluxDB Bridge
 This script parses the RFM69Gw published MQTT data and stores the measurements in InfluxDB
 """
@@ -14,6 +16,7 @@ import logging
 import sys
 import struct
 import time
+import signal
 
 logLevel = ''
 
@@ -64,7 +67,7 @@ def readConfig():
     myLog.info('Reading configuration file')
 
     config = configparser.ConfigParser()
-    config.read('/etc/rfm69gwtoinfluxbridge.conf')
+    config.read('/app/rfm69gwtoinfluxbridge.conf')
 
     try:
         logLevel = config['main']['loglevel']
@@ -129,7 +132,7 @@ def readConfig():
     try:
         mqttClientId = config['mqtt']['clientId']
     except KeyError:
-        mqttClientId = 'RFM69GwToInfluxDBBridge-Dev'
+        mqttClientId = 'RFM69GwToInfluxDBBridge'
 
 
 def on_connect(client, userdata, flags, rc):
@@ -314,6 +317,7 @@ def main():
     _init_influxdb_database()
 
     # init MQTT client
+    global mqtt_client
     mqtt_client = mqtt.Client(mqttClientId)
     mqtt_client.username_pw_set(mqttUser, mqttPassword)
     mqtt_client.on_connect = on_connect
@@ -323,11 +327,16 @@ def main():
     mqtt_client.connect(mqttAddress, mqttPort)
     mqtt_client.loop_forever()
 
+def signal_handler(sig, frame):
+    myLog.info("Stopping gracefully")
+    mqtt_client.loop_stop()
+    sys.exit(0)
+
 
 if __name__ == '__main__':
     # check the command line parameters
     if len(sys.argv) > 1 and sys.argv[1] == 'config':
-        c = open('/etc/rfm69gwtoinfluxbridge.conf.default', 'r')
+        c = open('/app/rfm69gwtoinfluxbridge.conf.default', 'r')
         lines = c.readlines()
         for l in lines:
             print(l.strip())
@@ -349,5 +358,9 @@ if __name__ == '__main__':
 
     # open the InfluxDB connection
     influxClient = InfluxDBClient(influxDbAddress, influxDbPort, influxDbUser, influxDbPassword, None)
+
+    # add INT and TERM handlers
+    signal.signal(signal.SIGINT, signal_handler)
+    signal.signal(signal.SIGTERM, signal_handler)
 
     main()
