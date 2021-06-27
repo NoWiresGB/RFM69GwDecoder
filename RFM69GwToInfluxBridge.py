@@ -329,7 +329,7 @@ def main():
 if __name__ == '__main__':
     # check the command line parameters
     if len(sys.argv) > 1 and sys.argv[1] == 'config':
-        c = open('/etc/rfm69gwtoinfluxbridge.conf.default', 'r')
+        c = open('/app/rfm69gwtoinfluxbridge.conf.default', 'r')
         lines = c.readlines()
         for l in lines:
             print(l.strip())
