@@ -17,6 +17,7 @@ import sys
 import struct
 import time
 import signal
+import argparse
 
 logLevel = ''
 
@@ -47,7 +48,7 @@ class SensorData(NamedTuple):
     measurement: str   # name of the measurement, e.g. power1, temp, etc
     value: float       # value of the measurmement
 
-def readConfig():
+def readConfig(confFile):
     global logLevel
 
     global influxDbAddress
@@ -67,72 +68,89 @@ def readConfig():
     myLog.info('Reading configuration file')
 
     config = configparser.ConfigParser()
-    config.read('/app/rfm69gwtoinfluxbridge.conf')
+    if confFile:
+        myLog.info('Using config file: ' + confFile)
+        config.read(confFile)
+    else:
+        config.read('/app/rfm69gwtoinfluxbridge.conf')
 
     try:
         logLevel = config['main']['loglevel']
     except KeyError:
         logLevel = 'ERROR'
+        myLog.info('Defaulting to loglevel: ERROR')
 
     try:
         influxDbAddress = config['influxdb']['address']
     except KeyError:
         influxDbAddress = '192.168.0.254'
+        myLog.info('Defaulting to InfluxDb address: 192.168.0.254')
 
     try:
         influxDbPort = int(config['influxdb']['port'])
     except KeyError:
         influxDbPort = 8086
+        myLog.info('Defaulting to InfluxDb port: 8086')
 
     try:
         influxDbUser = config['influxdb']['user']
     except KeyError:
         influxDbUser = 'root'
+        myLog.info('Defaulting to InfluxDb user: root')
 
     try:
         influxDbPassword = config['influxdb']['password']
     except KeyError:
         influxDbPassword = 'root'
+        myLog.info('Defaulting to InfluxDb password: root')
 
     try:
         influxDbDatabase = config['influxdb']['database']
     except KeyError:
         influxDbDatabase = 'home_iot'
+        myLog.info('Defaulting to InfluxDb database: home_iot')
 
     try:
         mqttAddress = config['mqtt']['address']
     except KeyError:
         mqttAddress = '192.168.0.254'
+        myLog.info('Defaulting to MQTT address: 192.168.0.254')
 
     try:
         mqttPort = int(config['mqtt']['port'])
     except KeyError:
         mqttPort = 1883
+        myLog.info('Defaulting to MQTT port: 1883')
 
     try:
         mqttUser = config['mqtt']['user']
     except KeyError:
         mqttUser = 'mqttuser'
+        myLog.info('Defaulting to MQTT user: mqttuser')
 
     try:
         mqttPassword = config['mqtt']['password']
     except KeyError:
         mqttPassword = 'mqttpassword'
+        myLog.info('Defaulting to MQTT password: mqttpassword')
 
     try:
         mqttTopic = config['mqtt']['topic']
     except KeyError:
         mqttTopic = 'RFM69Gw/+/+/+'
+        myLog.info('Defaulting to MQTT topic: RFM69Gw/+/+/+')
 
     try:
         mqttRegex = config['mqtt']['regex']
     except KeyError:
         mqttRegex = 'RFM69Gw/([^/]+)/([^/]+)/([^/]+)'
+        myLog.info('Defaulting to MQTT regex: RFM69Gw/([^/]+)/([^/]+)/([^/]+)')
 
     try:
         mqttClientId = config['mqtt']['clientId']
     except KeyError:
         mqttClientId = 'RFM69GwToInfluxDBBridge'
+        myLog.info('Defaulting to MQTT client ID: RFM69GwToInfluxDBBridge')
 
 
 def on_connect(client, userdata, flags, rc):
@@ -327,6 +345,7 @@ def main():
     mqtt_client.connect(mqttAddress, mqttPort)
     mqtt_client.loop_forever()
 
+
 def signal_handler(sig, frame):
     myLog.info("Stopping gracefully")
     mqtt_client.loop_stop()
@@ -334,8 +353,14 @@ def signal_handler(sig, frame):
 
 
 if __name__ == '__main__':
-    # check the command line parameters
-    if len(sys.argv) > 1 and sys.argv[1] == 'config':
+    # deal with command line parameters
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-d", "--default", help="dump default config to stdout", action="store_true")
+    parser.add_argument("-c", "--config", help="override default configuration file")
+    args = parser.parse_args()
+
+    # check if we need to dump the config file
+    if args.default:
         c = open('/app/rfm69gwtoinfluxbridge.conf.default', 'r')
         lines = c.readlines()
         for l in lines:
@@ -351,7 +376,7 @@ if __name__ == '__main__':
     myLog.info('RFM69Gw to InfluxDB bridge')
 
     # read the config file
-    readConfig()
+    readConfig(args.config)
 
     # set loglevel
     myLog.setLevel(logging.getLevelName(logLevel))
