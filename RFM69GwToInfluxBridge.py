@@ -132,7 +132,7 @@ def readConfig():
     try:
         mqttClientId = config['mqtt']['clientId']
     except KeyError:
-        mqttClientId = 'RFM69GwToInfluxDBBridge-Dev'
+        mqttClientId = 'RFM69GwToInfluxDBBridge'
 
 
 def on_connect(client, userdata, flags, rc):
