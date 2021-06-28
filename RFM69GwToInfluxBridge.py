@@ -18,6 +18,7 @@ import struct
 import time
 import signal
 import argparse
+import json
 
 logLevel = ''
 
@@ -64,6 +65,10 @@ def readConfig(confFile):
     global mqttTopic
     global mqttRegex
     global mqttClientId
+
+    global rebroadcastEnabled
+    global rebroadcastSensors
+    global rebroadcastTopic
 
     myLog.info('Reading configuration file')
 
@@ -152,6 +157,26 @@ def readConfig(confFile):
         mqttClientId = 'RFM69GwToInfluxDBBridge'
         myLog.info('Defaulting to MQTT client ID: RFM69GwToInfluxDBBridge')
 
+    try:
+        rebroadcastEnabled = config['rebroadcast'].getboolean('enabled')
+    except KeyError:
+        rebroadcastEnabled = False
+        myLog.info('Defaulting to rebroadcast enabled: False')
+
+    try:
+        #rebroadcastSensors = config['rebroadcast']['sensor_list']
+        rebroadcastSensors = json.loads(config.get('rebroadcast','sensor_list'))
+    except KeyError:
+        rebroadcastSensors = []
+        myLog.info('Defaulting to rebroadcast sensor list: <empty>')
+
+    try:
+        rebroadcastTopic = config['rebroadcast']['enabled']
+    except KeyError:
+        rebroadcastTopic = 'RFM69Bridge'
+        myLog.info('Defaulting to rebroadcast topic: RFM69Bridge')
+
+
 
 def on_connect(client, userdata, flags, rc):
     # The callback for when the client receives a CONNACK response from the server.
@@ -182,7 +207,7 @@ def _parse_mqtt_message(topic, payload):
             gwMac = match.group(1)
             radioId = match.group(2)
             data = match.group(3)
-            # Sensors have 'sens' in their name
+
             if 'payload' not in data:
                 #print('Not payload')
                 return None
@@ -191,10 +216,10 @@ def _parse_mqtt_message(topic, payload):
 
             # process payload
             # first get the radio ID
-            #print('>> processed data')
             radioIdHex = payload[2:4] + payload[0:2]
             radioId = int(radioIdHex, 16)
 
+            # get the sensor type
             sensTypeHex = payload[4:6]
             sensType = int(sensTypeHex, 16)
 
@@ -308,6 +333,10 @@ def _send_sensor_data_to_influxdb(sensor_data):
         influxClient.write_points(json_body)
     except:
         myLog.error("Exception while writing data to database")
+
+    # check if we need to rebroadcast the unpacked packet
+    if rebroadcastEnabled:
+        myLog.debug('rebroadcasting')
 
 
 def _init_influxdb_database():
