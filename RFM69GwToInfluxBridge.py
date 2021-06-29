@@ -171,11 +171,10 @@ def readConfig(confFile):
         myLog.info('Defaulting to rebroadcast sensor list: <empty>')
 
     try:
-        rebroadcastTopic = config['rebroadcast']['enabled']
+        rebroadcastTopic = config['rebroadcast']['topic']
     except KeyError:
         rebroadcastTopic = 'RFM69Bridge'
         myLog.info('Defaulting to rebroadcast topic: RFM69Bridge')
-
 
 
 def on_connect(client, userdata, flags, rc):
@@ -336,7 +335,18 @@ def _send_sensor_data_to_influxdb(sensor_data):
 
     # check if we need to rebroadcast the unpacked packet
     if rebroadcastEnabled:
-        myLog.debug('rebroadcasting')
+        json_body = {}
+        # now iterate through the measurements
+        # should really check if there are measurements from more than one sensor in sensor_data
+        # todo: iterate through m.sensor and group the MQTT publish messages by id
+        radioId = 0
+        for m in sensor_data:
+            if m.sensor in rebroadcastSensors:
+                radioId = m.sensor
+                json_body[m.measurement] = m.value
+        myLog.debug('Rebroadcasting MQTT %s/%u/%s', rebroadcastTopic, radioId, pprint.pformat(json_body))
+        # publish the message
+        mqtt_client.publish(rebroadcastTopic + '/' + str(radioId), json.dumps(json_body))
 
 
 def _init_influxdb_database():
