@@ -337,16 +337,20 @@ def _send_sensor_data_to_influxdb(sensor_data):
     if rebroadcastEnabled:
         json_body = {}
         # now iterate through the measurements
-        # should really check if there are measurements from more than one sensor in sensor_data
-        # todo: iterate through m.sensor and group the MQTT publish messages by id
-        radioId = 0
         for m in sensor_data:
-            if m.sensor in rebroadcastSensors:
-                radioId = m.sensor
-                json_body[m.measurement] = m.value
-        myLog.debug('Rebroadcasting MQTT %s/%u/%s', rebroadcastTopic, radioId, pprint.pformat(json_body))
-        # publish the message
-        mqtt_client.publish(rebroadcastTopic + '/' + str(radioId), json.dumps(json_body))
+            # add the key if it doesn't exist
+            if m.sensor not in json_body:
+                json_body[m.sensor] = {}
+            # now add the measurement and its value
+            json_body[m.sensor][m.measurement] = m.value
+
+        # now iterate through the transformed measurements and see what needs to be published
+        for m in json_body:
+            if m in rebroadcastSensors:
+                # log the event
+                myLog.debug('Rebroadcasting MQTT %s/%u/%s', rebroadcastTopic, m, pprint.pformat(json_body[m]))
+                # publish the message
+                mqtt_client.publish(rebroadcastTopic + '/' + str(m), json.dumps(json_body[m]))
 
 
 def _init_influxdb_database():
