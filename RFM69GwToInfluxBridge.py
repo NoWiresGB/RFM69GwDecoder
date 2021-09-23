@@ -372,12 +372,9 @@ def _init_influxdb_database():
             myLog.error('Database communication issue, retrying in 5 seconds')
             time.sleep(5)
 
+def _init_mqtt():
+    initialised = False
 
-def main():
-    # init InfluxDb
-    _init_influxdb_database()
-
-    # init MQTT client
     global mqtt_client
     mqtt_client = mqtt.Client(mqttClientId)
     mqtt_client.username_pw_set(mqttUser, mqttPassword)
@@ -385,8 +382,23 @@ def main():
     mqtt_client.on_message = on_message
 
     # open MQTT connection and start listening to messages
-    mqtt_client.connect(mqttAddress, mqttPort)
+    while not initialised:
+        try:
+            mqtt_client.connect(mqttAddress, mqttPort)
+        except:
+            myLog.error("Unable to connect to MQTT, retrying in 5 seconds")
+            time.sleep(5)
+
+    # enter network loop
     mqtt_client.loop_forever()
+
+
+def main():
+    # init InfluxDb
+    _init_influxdb_database()
+
+    # init MQTT
+    _init_mqtt()
 
 
 def signal_handler(sig, frame):
