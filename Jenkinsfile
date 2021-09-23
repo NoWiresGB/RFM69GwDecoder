@@ -8,6 +8,7 @@ pipeline {
 
             steps {
                 echo 'building the containers'
+                docker build -t zmarkella/rfm69gw:devel -f Dockerfile .
             }
         }
 
