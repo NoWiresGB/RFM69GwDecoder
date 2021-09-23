@@ -8,7 +8,7 @@ pipeline {
 
             steps {
                 echo 'building the containers'
-                x64Image = docker.build("zmarkella/rfm69gw:devel", "-f Dockerfile .")
+                def x64Image = docker.build("zmarkella/rfm69gw:devel", "-f Dockerfile .")
             }
         }
 
