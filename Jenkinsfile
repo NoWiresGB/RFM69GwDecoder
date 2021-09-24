@@ -29,12 +29,12 @@ pipeline {
         stage("upload") {
             steps {
                 echo 'pushing images to registry'
-/*                script {
+                script {
                     docker.withRegistry( '', dockerCreds ) {
                         x64Image.push()
                         armImage.push()
                     }
-                }*/
+                }
             }
         }
 
