@@ -4,6 +4,7 @@ pipeline {
         x64Image = ''
         armImage = ''
         dockerCreds = 'dockerhub_id'
+        imageTag = ''
     }
 
     agent any
@@ -14,8 +15,13 @@ pipeline {
             steps {
                 echo 'building the containers'
                 script {
-                    x64Image = docker.build("zmarkella/rfm69gw:devel", "-f Dockerfile .")
-                    armImage = docker.build("zmarkella/rfm69gw:devel-armv7hf", "-f Dockerfile.armv7hf .")
+                    if (env.TAG_NAME.equals('devel')) {
+                        imageTag = 'devel'
+                    } else {
+                        imageTag = 'latest'
+                    }
+                    x64Image = docker.build('zmarkella/rfm69gw:' + imageTag, '-f Dockerfile .')
+                    armImage = docker.build('zmarkella/rfm69gw:' + imageTag + '-armv7hf', '-f Dockerfile.armv7hf .')
                 }
             }
         }
@@ -23,12 +29,12 @@ pipeline {
         stage("upload") {
             steps {
                 echo 'pushing images to registry'
-                script {
+/*                script {
                     docker.withRegistry( '', dockerCreds ) {
                         x64Image.push()
                         armImage.push()
                     }
-                }
+                }*/
             }
         }
 
