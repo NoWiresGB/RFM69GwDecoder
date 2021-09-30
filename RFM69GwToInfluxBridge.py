@@ -385,6 +385,9 @@ def _init_mqtt():
     while not initialised:
         try:
             mqtt_client.connect(mqttAddress, mqttPort)
+            # need to call loop as we need to process the connect response
+            mqtt_client.loop()
+            initialised = True
         except:
             myLog.error("Unable to connect to MQTT, retrying in 5 seconds")
             time.sleep(5)
