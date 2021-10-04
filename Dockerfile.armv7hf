@@ -14,6 +14,6 @@ RUN install_packages python3 py3-pip \
 
 RUN [ "cross-build-end" ]  
 
-HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 CMD [ "/usr/local/bin/python3", "/app/RFM69GwHealthCheck.py" ]
+HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 CMD [ "/usr/bin/python3", "/app/RFM69GwHealthCheck.py" ]
 
 CMD ["/usr/bin/python3", "/app/RFM69GwToInfluxBridge.py"]
