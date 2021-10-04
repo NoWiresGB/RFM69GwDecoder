@@ -486,6 +486,12 @@ if __name__ == '__main__':
     # set loglevel
     myLog.setLevel(logging.getLevelName(logLevel))
 
+    # disable Flask logging
+    apiServerLog = logging.getLogger('werkzeug')
+    apiServerLog.setLevel(logging.ERROR)
+    app.logger.disabled = True
+    apiServerLog.disabled = True
+
     # start our API server
     global server
     server = ServerThread(app)
