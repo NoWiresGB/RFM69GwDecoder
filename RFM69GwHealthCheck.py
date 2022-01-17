@@ -3,7 +3,7 @@
 # -*- coding: latin-1 -*-
 
 """ RFM69Gw Healthcheck 
-This script checks the health of the RFM69Gw
+This script checks the health of the RFM69GwToInfluxBridge
 """
 import requests
 import configparser
