@@ -19,8 +19,12 @@ import time
 import signal
 import argparse
 import json
+import threading
+from werkzeug.serving import make_server
+import flask
 
 logLevel = ''
+apiPort = 0
 
 influxDbAddress = ''
 influxDbPort = 0
@@ -44,13 +48,41 @@ NODEFUNC_TEMP_RH = 4
 NODEFUNC_TEMP_PRESSURE = 5
 NODEFUNC_TRIGGER = 6
 
+# our API server
+app = flask.Flask(__name__)
+
+
+class ServerThread(threading.Thread):
+
+    def __init__(self, app):
+        threading.Thread.__init__(self)
+        myLog.info('Starting API server on port ' + str(apiPort))
+        self.server = make_server('127.0.0.1', apiPort, app)
+        self.ctx = app.app_context()
+        self.ctx.push()
+
+    def run(self):
+        self.server.serve_forever()
+
+    def shutdown(self):
+        self.server.shutdown()
+
+
 class SensorData(NamedTuple):
     sensor: str        # node id on the radio network
     measurement: str   # name of the measurement, e.g. power1, temp, etc
     value: float       # value of the measurmement
 
+
+@app.route('/status')
+def hello_world():
+    # right now just return 'running' with a 200 status
+    return 'running'
+
+
 def readConfig(confFile):
     global logLevel
+    global apiPort
 
     global influxDbAddress
     global influxDbPort
@@ -84,6 +116,12 @@ def readConfig(confFile):
     except KeyError:
         logLevel = 'ERROR'
         myLog.info('Defaulting to loglevel: ERROR')
+
+    try:
+        apiPort = int(config['main']['apiport'])
+    except KeyError:
+        apiPort = 5000
+        myLog.info('Defaulting to apiPort: 5000')
 
     try:
         influxDbAddress = config['influxdb']['address']
@@ -372,6 +410,7 @@ def _init_influxdb_database():
             myLog.error('Database communication issue, retrying in 5 seconds')
             time.sleep(5)
 
+
 def _init_mqtt():
     initialised = False
 
@@ -406,7 +445,15 @@ def main():
 
 def signal_handler(sig, frame):
     myLog.info("Stopping gracefully")
+
+    # stop MQTT loop
     mqtt_client.loop_stop()
+
+    # stop our API server
+    global server
+    server.shutdown()
+
+    # finally exit
     sys.exit(0)
 
 
@@ -438,6 +485,17 @@ if __name__ == '__main__':
 
     # set loglevel
     myLog.setLevel(logging.getLevelName(logLevel))
+
+    # disable Flask logging
+    apiServerLog = logging.getLogger('werkzeug')
+    apiServerLog.setLevel(logging.ERROR)
+    app.logger.disabled = True
+    apiServerLog.disabled = True
+
+    # start our API server
+    global server
+    server = ServerThread(app)
+    server.start()
 
     # open the InfluxDB connection
     influxClient = InfluxDBClient(influxDbAddress, influxDbPort, influxDbUser, influxDbPassword, None)

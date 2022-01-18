@@ -11,10 +11,10 @@ docker run --rm zmarkella/rfm69gw python3 /bin/RFM69GwToInfluxBridge.py config >
 docker run -d -v $PWD/rfm69gwtoinfluxbridge.conf:/etc/rfm69gwtoinfluxbridge.conf:ro zmarkella/rfm69gw
 ```
 
-## Automated builds on Docker hub
-The master branch is set up to be automatically built with the 'latest' tag in Docker repository zmarkella/rgm69gw.
-The devel tag automatically builds the '-devel' tagged release.
-In order to kick off the devel build, once the changes are commited to GitHub, just force the tag onto the current commit:
+## No more automated builds on Docker hub (but there's a Jenkins serveer!)
+Currently, there's a Jenkins server that's set up to build both master branch and 'devel' tag, then push it to Docker hub.
+
+Force the tag onto the current commit:
 ```
 git tag -f -a devel
 git push -f --tags
