@@ -102,6 +102,9 @@ def readConfig(confFile):
     global rebroadcastSensors
     global rebroadcastTopic
 
+    global haIntegrationEnabled
+    global haBaseTopic
+
     myLog.info('Reading configuration file')
 
     config = configparser.ConfigParser()
@@ -214,10 +217,29 @@ def readConfig(confFile):
         rebroadcastTopic = 'RFM69Bridge'
         myLog.info('Defaulting to rebroadcast topic: RFM69Bridge')
 
+    try:
+        haIntegrationEnabled = config['ha_integration'].getboolean('enabled')
+    except KeyError:
+        haIntegrationEnabled = False
+        myLog.info('Defaulting to HA integration enabled: False')
+
+    try:
+        haBaseTopic = config['ha_integration']['baseTopic']
+    except KeyError:
+        haBaseTopic = 'rfm69gw-decoder'
+        myLog.info('Defaulting to HA integration base topic: rfm69gw-decoder')
+
 
 def on_connect(client, userdata, flags, rc):
     # The callback for when the client receives a CONNACK response from the server.
     myLog.info('Connected to MQTT with result code %s', str(rc))
+
+    # if HA integration is enabled, we need to send a birth message
+    if haIntegrationEnabled:
+        mqtt_client.publish(haBaseTopic + '/status', 'online', 0, True)
+        myLog.debug('Sending birth message to HA')
+
+    # subscribe to the RFM69Gw topic
     client.subscribe(mqttTopic)
 
 
@@ -445,6 +467,11 @@ def main():
 
 def signal_handler(sig, frame):
     myLog.info("Stopping gracefully")
+
+    # if HA integration is enabled, we need to send a last will message
+    if haIntegrationEnabled:
+        mqtt_client.publish(haBaseTopic + '/status', 'offline', 0, True)
+        myLog.debug('Sending last will message to HA')
 
     # stop MQTT loop
     mqtt_client.loop_stop()
