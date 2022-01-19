@@ -79,6 +79,7 @@ class ServerThread(threading.Thread):
 class SensorData(NamedTuple):
     gw: str             # gateway mac address
     sensor: str         # node id on the radio network
+    type: int           # sensor type
     measurement: str    # name of the measurement, e.g. power1, temp, etc
     value: float        # value of the measurmement
 
@@ -305,82 +306,82 @@ def _parse_mqtt_message(topic, payload):
                 vrmsHex = payload[12:14] + payload[10:12]
                 vrms = int(vrmsHex, 16) / 10
 
-                rMeas.append(SensorData(gwMac, radioId, 'power1', power))
-                rMeas.append(SensorData(gwMac, radioId, 'vrms', vrms))
+                rMeas.append(SensorData(gwMac, radioId, sensType, 'power1', power))
+                rMeas.append(SensorData(gwMac, radioId, sensType, 'vrms', vrms))
 
                 return rMeas
             elif (sensType == NODEFUNC_POWER_DOUBLE):
                 powerHex = payload[8:10] + payload[6:8]
                 power = int(powerHex, 16)
-                rMeas.append(SensorData(gwMac, radioId, 'power1', power))
+                rMeas.append(SensorData(gwMac, radioId, sensType, 'power1', power))
 
                 powerHex = payload[12:14] + payload[10:12]
                 power = int(powerHex, 16)
-                rMeas.append(SensorData(gwMac, radioId, 'power2', power))
+                rMeas.append(SensorData(gwMac, radioId, sensType, 'power2', power))
 
                 vrmsHex = payload[16:18] + payload[14:16]
                 vrms = int(vrmsHex, 16) / 10
-                rMeas.append(SensorData(gwMac, radioId, 'vrms', vrms))
+                rMeas.append(SensorData(gwMac, radioId, sensType, 'vrms', vrms))
 
                 return rMeas
             elif (sensType == NODEFUNC_POWER_QUAD):
                 powerHex = payload[8:10] + payload[6:8]
                 power = int(powerHex, 16)
-                rMeas.append(SensorData(gwMac, radioId, 'power1', power))
+                rMeas.append(SensorData(gwMac, radioId, sensType, 'power1', power))
 
                 powerHex = payload[12:14] + payload[10:12]
                 power = int(powerHex, 16)
-                rMeas.append(SensorData(gwMac, radioId, 'power2', power))
+                rMeas.append(SensorData(gwMac, radioId, sensType, 'power2', power))
 
                 powerHex = payload[16:18] + payload[14:16]
                 power = int(powerHex, 16)
-                rMeas.append(SensorData(gwMac, radioId, 'power3', power))
+                rMeas.append(SensorData(gwMac, radioId, sensType, 'power3', power))
 
                 powerHex = payload[20:22] + payload[18:20]
                 power = int(powerHex, 16)
-                rMeas.append(SensorData(gwMac, radioId, 'power4', power))
+                rMeas.append(SensorData(gwMac, radioId, sensType, 'power4', power))
 
                 vrmsHex = payload[24:26] + payload[22:24]
                 vrms = int(vrmsHex, 16) / 10
-                rMeas.append(SensorData(gwMac, radioId, 'vrms', vrms))
+                rMeas.append(SensorData(gwMac, radioId, sensType, 'vrms', vrms))
 
                 return rMeas
             elif (sensType == NODEFUNC_TEMP_RH):
                 tempHex = payload[8:10] + payload[6:8]
                 temp = struct.unpack('>h', bytes.fromhex(tempHex))[0] / 100
-                rMeas.append(SensorData(gwMac, radioId, 'temp', temp))
+                rMeas.append(SensorData(gwMac, radioId, sensType, 'temp', temp))
 
                 rhHex = payload[12:14] + payload[10:12]
                 rh = int(rhHex, 16) / 100
-                rMeas.append(SensorData(gwMac, radioId, 'rh', rh))
+                rMeas.append(SensorData(gwMac, radioId, sensType, 'rh', rh))
 
                 rhHex = payload[16:18] + payload[14:16]
                 vbatt = int(rhHex, 16)
-                rMeas.append(SensorData(gwMac, radioId, 'vbatt', vbatt))
+                rMeas.append(SensorData(gwMac, radioId, sensType, 'vbatt', vbatt))
 
                 return rMeas
             elif (sensType == NODEFUNC_TEMP_PRESSURE):
                 tempHex = payload[8:10] + payload[6:8]
                 temp = struct.unpack('>h', bytes.fromhex(tempHex))[0] / 100
-                rMeas.append(SensorData(gwMac, radioId, 'temp', temp))
+                rMeas.append(SensorData(gwMac, radioId, sensType, 'temp', temp))
 
                 rhHex = payload[16:18] + payload[14:16] + payload[12:14] + payload[10:12]
                 pressure = int(rhHex, 16) / 100
-                rMeas.append(SensorData(gwMac, radioId, 'pressure', pressure))
+                rMeas.append(SensorData(gwMac, radioId, sensType, 'pressure', pressure))
 
                 rhHex = payload[16:18] + payload[14:16]
                 vbatt = int(rhHex, 16)
-                rMeas.append(SensorData(gwMac, radioId, 'vbatt', vbatt))
+                rMeas.append(SensorData(gwMac, radioId, sensType, 'vbatt', vbatt))
 
                 return rMeas
             elif (sensType == NODEFUNC_TRIGGER):
                 rhHex = payload[6:8]
                 trigger = int(rhHex, 16)
-                rMeas.append(SensorData(gwMac, radioId, 'trigger', trigger))
+                rMeas.append(SensorData(gwMac, radioId, sensType, 'trigger', trigger))
 
                 rhHex = payload[10:12] + payload[8:10]
                 vbatt = int(rhHex, 16)
-                rMeas.append(SensorData(gwMac, radioId, 'vbatt', vbatt))
+                rMeas.append(SensorData(gwMac, radioId, sensType, 'vbatt', vbatt))
 
                 return rMeas
             else:
@@ -429,6 +430,10 @@ def _send_sensor_data(sensor_data):
                 myLog.debug('Rebroadcasting MQTT %s/%u/%s', rebroadcastTopic, m, pprint.pformat(json_body[m]))
                 # publish the message
                 mqtt_client.publish(rebroadcastTopic + '/' + str(m), json.dumps(json_body[m]))
+
+    # check if we need to send the data to HA
+    if haIntegrationEnabled:
+        json_body = {}
 
 
 def _init_influxdb_database():
