@@ -26,6 +26,7 @@ import flask
 logLevel = ''
 apiPort = 0
 
+influxDbEnabled = False
 influxDbAddress = ''
 influxDbPort = 0
 influxDbUser = ''
@@ -39,6 +40,13 @@ mqttPassword = ''
 mqttTopic = ''
 mqttRegex = ''
 mqttClientId = ''
+
+rebroadcastEnabled = False
+rebroadcastSensors = []
+rebroadcastTopic = ''
+
+haIntegrationEnabled = False
+haBaseTopic = ''
 
 # node type constants
 NODEFUNC_POWER_SINGLE = 1
@@ -84,6 +92,7 @@ def readConfig(confFile):
     global logLevel
     global apiPort
 
+    global influxDbEnabled
     global influxDbAddress
     global influxDbPort
     global influxDbUser
@@ -127,36 +136,6 @@ def readConfig(confFile):
         myLog.info('Defaulting to apiPort: 5000')
 
     try:
-        influxDbAddress = config['influxdb']['address']
-    except KeyError:
-        influxDbAddress = '192.168.0.254'
-        myLog.info('Defaulting to InfluxDb address: 192.168.0.254')
-
-    try:
-        influxDbPort = int(config['influxdb']['port'])
-    except KeyError:
-        influxDbPort = 8086
-        myLog.info('Defaulting to InfluxDb port: 8086')
-
-    try:
-        influxDbUser = config['influxdb']['user']
-    except KeyError:
-        influxDbUser = 'root'
-        myLog.info('Defaulting to InfluxDb user: root')
-
-    try:
-        influxDbPassword = config['influxdb']['password']
-    except KeyError:
-        influxDbPassword = 'root'
-        myLog.info('Defaulting to InfluxDb password: root')
-
-    try:
-        influxDbDatabase = config['influxdb']['database']
-    except KeyError:
-        influxDbDatabase = 'home_iot'
-        myLog.info('Defaulting to InfluxDb database: home_iot')
-
-    try:
         mqttAddress = config['mqtt']['address']
     except KeyError:
         mqttAddress = '192.168.0.254'
@@ -197,6 +176,42 @@ def readConfig(confFile):
     except KeyError:
         mqttClientId = 'RFM69GwToInfluxDBBridge'
         myLog.info('Defaulting to MQTT client ID: RFM69GwToInfluxDBBridge')
+
+    try:
+        influxDbEnabled = config['influxdb'].getboolean('enabled')
+    except KeyError:
+        influxDbEnabled = False
+        myLog.info('Defaulting to InfluxDb enabled: False')
+
+    try:
+        influxDbAddress = config['influxdb']['address']
+    except KeyError:
+        influxDbAddress = '192.168.0.254'
+        myLog.info('Defaulting to InfluxDb address: 192.168.0.254')
+
+    try:
+        influxDbPort = int(config['influxdb']['port'])
+    except KeyError:
+        influxDbPort = 8086
+        myLog.info('Defaulting to InfluxDb port: 8086')
+
+    try:
+        influxDbUser = config['influxdb']['user']
+    except KeyError:
+        influxDbUser = 'root'
+        myLog.info('Defaulting to InfluxDb user: root')
+
+    try:
+        influxDbPassword = config['influxdb']['password']
+    except KeyError:
+        influxDbPassword = 'root'
+        myLog.info('Defaulting to InfluxDb password: root')
+
+    try:
+        influxDbDatabase = config['influxdb']['database']
+    except KeyError:
+        influxDbDatabase = 'home_iot'
+        myLog.info('Defaulting to InfluxDb database: home_iot')
 
     try:
         rebroadcastEnabled = config['rebroadcast'].getboolean('enabled')
@@ -249,11 +264,11 @@ def on_message(client, userdata, msg):
 
     # parse received payload
     measurements = _parse_mqtt_message(msg.topic, msg.payload.decode('utf-8'))
-    myLog.debug('Parsed measurements: %s', pprint.pformat(measurements))
+    myLog.debug('Parsed measurements:\n%s', pprint.pformat(measurements))
 
     # write the measurements into the database
     if measurements is not None:
-        _send_sensor_data_to_influxdb(measurements)
+        _send_sensor_data(measurements)
 
 
 def _parse_mqtt_message(topic, payload):
@@ -379,19 +394,21 @@ def _parse_mqtt_message(topic, payload):
         return None
 
 
-def _send_sensor_data_to_influxdb(sensor_data):
-    # construct the JSON
-    json_body = []
-    for m in sensor_data:
-        json_body.append({ 'measurement': m.measurement, 'tags': { 'nodeid' : m.sensor }, 'fields' : { 'value' : m.value }})
+def _send_sensor_data(sensor_data):
+    # check if we need to write to InfluxDb
+    if influxDbEnabled:
+        # construct the JSON
+        json_body = []
+        for m in sensor_data:
+            json_body.append({ 'measurement': m.measurement, 'tags': { 'nodeid' : m.sensor }, 'fields' : { 'value' : m.value }})
 
-    myLog.debug('Writing JSON to DB: %s', pprint.pformat(json_body))
+        myLog.debug('Writing JSON to DB: %s', pprint.pformat(json_body))
 
-    try:
-        # write measurements to the database
-        influxClient.write_points(json_body)
-    except:
-        myLog.error("Exception while writing data to database")
+        try:
+            # write measurements to the database
+            influxClient.write_points(json_body)
+        except:
+            myLog.error("Exception while writing data to database")
 
     # check if we need to rebroadcast the unpacked packet
     if rebroadcastEnabled:
@@ -458,8 +475,9 @@ def _init_mqtt():
 
 
 def main():
-    # init InfluxDb
-    _init_influxdb_database()
+    # init InfluxDb (if enabled)
+    if influxDbEnabled:
+        _init_influxdb_database()
 
     # init MQTT
     _init_mqtt()
@@ -524,8 +542,9 @@ if __name__ == '__main__':
     server = ServerThread(app)
     server.start()
 
-    # open the InfluxDB connection
-    influxClient = InfluxDBClient(influxDbAddress, influxDbPort, influxDbUser, influxDbPassword, None)
+    if influxDbEnabled:
+        # open the InfluxDB connection
+        influxClient = InfluxDBClient(influxDbAddress, influxDbPort, influxDbUser, influxDbPassword, None)
 
     # add INT and TERM handlers
     signal.signal(signal.SIGINT, signal_handler)
