@@ -244,7 +244,7 @@ def readConfig(confFile):
         myLog.info('Defaulting to HA integration enabled: False')
 
     try:
-        haBaseTopic = config['ha_integration']['baseTopic']
+        haBaseTopic = config['ha_integration']['base_topic']
     except KeyError:
         haBaseTopic = 'rfm69gw-decoder'
         myLog.info('Defaulting to HA integration base topic: rfm69gw-decoder')
