@@ -48,6 +48,9 @@ rebroadcastTopic = ''
 haIntegrationEnabled = False
 haBaseTopic = ''
 
+# this will hold [gwmac][sensorid][measurement] to show if we have provisoned this sensor
+provisionedSensors = {}
+
 # node type constants
 NODEFUNC_POWER_SINGLE = 1
 NODEFUNC_POWER_DOUBLE = 2
@@ -281,6 +284,10 @@ def _parse_mqtt_message(topic, payload):
     if match:
         try:
             gwMac = match.group(1)
+            # extract the MAC address (and strip out the colons)
+            macMatch = re.match('.*-(..:..:..:..:..:..)-.*', gwMac)
+            if macMatch:
+                gwMac = macMatch.group(1).replace(':', '')
             radioId = match.group(2)
             data = match.group(3)
 
@@ -396,6 +403,34 @@ def _parse_mqtt_message(topic, payload):
         return None
 
 
+def get_device_class(sensor_data):
+    if sensor_data.measurement == 'power1' or sensor_data.measurement == 'power2' or sensor_data.measurement == 'power3' or sensor_data.measurement == 'power4':
+        return 'power'
+    if sensor_data.measurement == 'vrms':
+        return 'voltage'
+    if sensor_data.measurement == 'temp':
+        return 'temperature'
+    if sensor_data.measurement == 'rh':
+        return 'humidity'
+    if sensor_data.measurement == 'vbatt':
+        return 'voltage'
+    return 'None'
+
+
+def get_unit_of_measurement(sensor_data):
+    if sensor_data.measurement == 'power1' or sensor_data.measurement == 'power2' or sensor_data.measurement == 'power3' or sensor_data.measurement == 'power4':
+        return 'W'
+    if sensor_data.measurement == 'vrms':
+        return 'V'
+    if sensor_data.measurement == 'temp':
+        return '°C'
+    if sensor_data.measurement == 'rh':
+        return '%'
+    if sensor_data.measurement == 'vbatt':
+        return 'mV'
+    return 'None'
+
+
 def _send_sensor_data(sensor_data):
     # check if we need to write to InfluxDb
     if influxDbEnabled:
@@ -433,8 +468,74 @@ def _send_sensor_data(sensor_data):
 
     # check if we need to send the data to HA
     if haIntegrationEnabled:
-        json_body = {}
+        # we'll collect all the measurements here, so we avoid sending multiple MQTT messages for multi-sensor devices
+        # format is data_json['state_topic']['measurement'] = value to send
+        data_json = {}
 
+        # now iterate through the measurements
+        for m in sensor_data:
+            # flag to mark if we need to provision the sensor to HA
+            provisionSensor = True
+
+            try:
+                if provisionedSensors[m.gw]:
+                    try:
+                        if provisionedSensors[m.gw][m.sensor]:
+                            try:
+                                if provisionedSensors[m.gw][m.sensor][m.measurement]:
+                                    provisionSensor = False
+                            except KeyError:
+                                # add the measurement key
+                                provisionedSensors[m.gw][m.sensor][m.measurement] = 1
+                    except KeyError:
+                        # add the sensor & measurement key
+                        provisionedSensors[m.gw][m.sensor] = {}
+                        provisionedSensors[m.gw][m.sensor][m.measurement] = 1
+            except KeyError:
+                # add the GW, sensor & measurement key
+                provisionedSensors[m.gw] = {}
+                provisionedSensors[m.gw][m.sensor] = {}
+                provisionedSensors[m.gw][m.sensor][m.measurement] = 1
+            
+            if provisionSensor:
+                # let's build the provisioning message
+                json_body = {}
+
+                json_body['availability'] = []
+                json_body['availability'].append({})
+                json_body['availability'][0]['topic'] = haBaseTopic + '/status'
+                json_body['device'] = {}
+                json_body['device']['identifiers'] = []
+                json_body['device']['identifiers'].append('rfm69gw_' + m.gw + '_' + str(m.sensor))
+                json_body['device']['manufacturer'] = 'Owltronics'
+                json_body['device']['model'] = 'Owlet sensor'
+                json_body['device']['name'] = haBaseTopic + '_' + m.gw + '_' + str(m.sensor)
+                json_body['device_class'] = get_device_class(m)
+                json_body['enabled_by_default'] = True
+                json_body['name'] = m.gw + '-' + str(m.sensor) + '-' + m.measurement
+                json_body['state_class'] = 'measurement'
+                json_body['state_topic'] = haBaseTopic + '/' + m.gw + '/' + str(m.sensor)
+                json_body['unique_id'] = m.gw + '_' + str(m.sensor) + '_' + m.measurement
+                json_body['unit_of_measurement'] = get_unit_of_measurement(m)
+                json_body['value_template'] = '{{ value_json.' + m.measurement + ' }}'
+
+                t = 'homeassistant/sensor/' + haBaseTopic + '-' + m.gw + '-' + str(m.sensor) + '/' + m.measurement + '/config'
+                myLog.debug('Provisioning sensor in HA (%s):\n%s', t, json.dumps(json_body))
+
+                # send the provisioning message
+                mqtt_client.publish(t, json.dumps(json_body))
+            
+            try:
+                data_json[haBaseTopic + '/' + m.gw + '/' + str(m.sensor)][m.measurement] = m.value
+            except KeyError:
+                # looks like we're missing the base key
+                data_json[haBaseTopic + '/' + m.gw + '/' + str(m.sensor)] = {}
+                data_json[haBaseTopic + '/' + m.gw + '/' + str(m.sensor)][m.measurement] = m.value
+
+        # we're ready to send the measurements as all the sensors have been provisioned
+        myLog.debug('Sending measurements to HA:\n%s', json.dumps(data_json))
+        for k in data_json:
+            mqtt_client.publish(k, json.dumps(data_json[k]))
 
 def _init_influxdb_database():
     initialised = False
