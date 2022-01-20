@@ -47,6 +47,7 @@ rebroadcastTopic = ''
 
 haIntegrationEnabled = False
 haBaseTopic = ''
+haStatusTopic = ''
 
 # this will hold [gwmac][sensorid][measurement] to show if we have provisoned this sensor
 provisionedSensors = {}
@@ -118,6 +119,7 @@ def readConfig(confFile):
 
     global haIntegrationEnabled
     global haBaseTopic
+    global haStatusTopic
 
     myLog.info('Reading configuration file')
 
@@ -249,6 +251,12 @@ def readConfig(confFile):
         haBaseTopic = 'rfm69gw-decoder'
         myLog.info('Defaulting to HA integration base topic: rfm69gw-decoder')
 
+    try:
+        haStatusTopic = config['ha_integration']['ha_status_topic']
+    except KeyError:
+        haStatusTopic = 'homeassistant/status'
+        myLog.info('Defaulting to HA status topic: homeassistant/status')
+
 
 def on_connect(client, userdata, flags, rc):
     # The callback for when the client receives a CONNACK response from the server.
@@ -261,19 +269,34 @@ def on_connect(client, userdata, flags, rc):
 
     # subscribe to the RFM69Gw topic
     client.subscribe(mqttTopic)
+    # also subscribe to the HA status topic
+    client.subscribe(haStatusTopic)
 
 
 def on_message(client, userdata, msg):
     # The callback for when a PUBLISH message is received from the server.
     myLog.debug('MQTT receive: %s %s', msg.topic, str(msg.payload))
 
-    # parse received payload
-    measurements = _parse_mqtt_message(msg.topic, msg.payload.decode('utf-8'))
-    myLog.debug('Parsed measurements:\n%s', pprint.pformat(measurements))
+    # let's see what we got
+    if msg.topic == haStatusTopic:
+        # if HA is coming online, then we need to re-publish all of the sensors
+        if msg.payload.decode("utf-8")  == 'online':
+            myLog.info('HA is starting; reconfiguring all of the sensors')
+            for g in provisionedSensors:
+                for s in provisionedSensors[g]:
+                    for m in provisionedSensors[g][s]:
+                        sens = SensorData(g, s, -1, m, 0)
+                        provision_sensor(sens)
+        else:
+            myLog.debug('HA is stopping; no need to do anything')
+    else:
+        # parse received payload
+        measurements = _parse_mqtt_message(msg.topic, msg.payload.decode('utf-8'))
+        myLog.debug('Parsed measurements:\n%s', pprint.pformat(measurements))
 
-    # write the measurements into the database
-    if measurements is not None:
-        _send_sensor_data(measurements)
+        # write the measurements into the database
+        if measurements is not None:
+            _send_sensor_data(measurements)
 
 
 def _parse_mqtt_message(topic, payload):
@@ -431,6 +454,34 @@ def get_unit_of_measurement(sensor_data):
     return 'None'
 
 
+def provision_sensor(sensor_data):
+    json_body = {}
+
+    json_body['availability'] = []
+    json_body['availability'].append({})
+    json_body['availability'][0]['topic'] = haBaseTopic + '/status'
+    json_body['device'] = {}
+    json_body['device']['identifiers'] = []
+    json_body['device']['identifiers'].append('rfm69gw_' + sensor_data.gw + '_' + str(sensor_data.sensor))
+    json_body['device']['manufacturer'] = 'Owltronics'
+    json_body['device']['model'] = 'Owlet sensor'
+    json_body['device']['name'] = haBaseTopic + '_' + sensor_data.gw + '_' + str(sensor_data.sensor)
+    json_body['device_class'] = get_device_class(sensor_data)
+    json_body['enabled_by_default'] = True
+    json_body['name'] = sensor_data.gw + '-' + str(sensor_data.sensor) + '-' + sensor_data.measurement
+    json_body['state_class'] = 'measurement'
+    json_body['state_topic'] = haBaseTopic + '/' + sensor_data.gw + '/' + str(sensor_data.sensor)
+    json_body['unique_id'] = sensor_data.gw + '_' + str(sensor_data.sensor) + '_' + sensor_data.measurement
+    json_body['unit_of_measurement'] = get_unit_of_measurement(sensor_data)
+    json_body['value_template'] = '{{ value_json.' + sensor_data.measurement + ' }}'
+
+    t = 'homeassistant/sensor/' + haBaseTopic + '-' + sensor_data.gw + '-' + str(sensor_data.sensor) + '/' + sensor_data.measurement + '/config'
+    myLog.debug('Provisioning sensor in HA (%s):\n%s', t, json.dumps(json_body))
+
+    # send the provisioning message
+    mqtt_client.publish(t, json.dumps(json_body))
+
+
 def _send_sensor_data(sensor_data):
     # check if we need to write to InfluxDb
     if influxDbEnabled:
@@ -498,32 +549,8 @@ def _send_sensor_data(sensor_data):
                 provisionedSensors[m.gw][m.sensor][m.measurement] = 1
             
             if provisionSensor:
-                # let's build the provisioning message
-                json_body = {}
-
-                json_body['availability'] = []
-                json_body['availability'].append({})
-                json_body['availability'][0]['topic'] = haBaseTopic + '/status'
-                json_body['device'] = {}
-                json_body['device']['identifiers'] = []
-                json_body['device']['identifiers'].append('rfm69gw_' + m.gw + '_' + str(m.sensor))
-                json_body['device']['manufacturer'] = 'Owltronics'
-                json_body['device']['model'] = 'Owlet sensor'
-                json_body['device']['name'] = haBaseTopic + '_' + m.gw + '_' + str(m.sensor)
-                json_body['device_class'] = get_device_class(m)
-                json_body['enabled_by_default'] = True
-                json_body['name'] = m.gw + '-' + str(m.sensor) + '-' + m.measurement
-                json_body['state_class'] = 'measurement'
-                json_body['state_topic'] = haBaseTopic + '/' + m.gw + '/' + str(m.sensor)
-                json_body['unique_id'] = m.gw + '_' + str(m.sensor) + '_' + m.measurement
-                json_body['unit_of_measurement'] = get_unit_of_measurement(m)
-                json_body['value_template'] = '{{ value_json.' + m.measurement + ' }}'
-
-                t = 'homeassistant/sensor/' + haBaseTopic + '-' + m.gw + '-' + str(m.sensor) + '/' + m.measurement + '/config'
-                myLog.debug('Provisioning sensor in HA (%s):\n%s', t, json.dumps(json_body))
-
-                # send the provisioning message
-                mqtt_client.publish(t, json.dumps(json_body))
+                # let's provision the sensor
+                provision_sensor(m)
             
             try:
                 data_json[haBaseTopic + '/' + m.gw + '/' + str(m.sensor)][m.measurement] = m.value
