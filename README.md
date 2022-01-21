@@ -3,7 +3,7 @@ RFM69-Gateway to InfluxDb bridge
 
 ### Generate default config
 ```
-docker run --rm zmarkella/rfm69gw python3 /bin/RFM69GwToInfluxBridge.py config > rfm69gwtoinfluxbridge.conf
+docker run --rm zmarkella/rfm69gw python3 /app/RFM69GwToInfluxBridge.py -d > rfm69gwtoinfluxbridge.conf
 ```
 
 ### Run the GW
