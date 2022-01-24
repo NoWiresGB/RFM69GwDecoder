@@ -2,8 +2,8 @@
 
 # -*- coding: latin-1 -*-
 
-""" RFM69Gw to InfluxDB Bridge
-This script parses the RFM69Gw published MQTT data and stores the measurements in InfluxDB
+""" RFM69Gw Decoder
+This script parses the RFM69Gw published MQTT data and sends them to configured destinations (InfluxDb, Home Assistant, MQTT)
 """
 
 import re
@@ -128,7 +128,7 @@ def readConfig(confFile):
         myLog.info('Using config file: ' + confFile)
         config.read(confFile)
     else:
-        config.read('/app/rfm69gwtoinfluxbridge.conf')
+        config.read('/app/rfm69gw-decoder.conf')
 
     try:
         logLevel = config['main']['loglevel']
@@ -182,7 +182,7 @@ def readConfig(confFile):
         mqttClientId = config['mqtt']['clientId']
     except KeyError:
         mqttClientId = 'RFM69GwToInfluxDBBridge'
-        myLog.info('Defaulting to MQTT client ID: RFM69GwToInfluxDBBridge')
+        myLog.info('Defaulting to MQTT client ID: RFM69GwDecoder')
 
     try:
         influxDbEnabled = config['influxdb'].getboolean('enabled')
@@ -645,7 +645,7 @@ if __name__ == '__main__':
 
     # check if we need to dump the config file
     if args.default:
-        c = open('/app/rfm69gwtoinfluxbridge.conf.default', 'r')
+        c = open('/app/rfm69gw-decoder.conf.default', 'r')
         lines = c.readlines()
         for l in lines:
             print(l.strip())
@@ -657,7 +657,7 @@ if __name__ == '__main__':
 
     # set loglevel and log format
     logging.basicConfig(format='%(asctime)s [%(levelname)s] %(message)s', level=logging.INFO)
-    myLog.info('RFM69Gw to InfluxDB bridge')
+    myLog.info('RFM69Gw Decoder')
 
     # read the config file
     readConfig(args.config)
