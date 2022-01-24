@@ -20,8 +20,8 @@ pipeline {
                     } else {
                         imageTag = 'latest'
                     }
-                    x64Image = docker.build('zmarkella/rfm69gw:' + imageTag, '-f Dockerfile .')
-                    armImage = docker.build('zmarkella/rfm69gw:' + imageTag + '-armv7hf', '-f Dockerfile.armv7hf .')
+                    x64Image = docker.build('zmarkella/rfm69gw-decoder:' + imageTag, '-f Dockerfile .')
+                    armImage = docker.build('zmarkella/rfm69gw-decoder:' + imageTag + '-armv7hf', '-f Dockerfile.armv7hf .')
                 }
             }
         }
