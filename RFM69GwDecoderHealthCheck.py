@@ -2,8 +2,8 @@
 
 # -*- coding: latin-1 -*-
 
-""" RFM69Gw Healthcheck 
-This script checks the health of the RFM69GwToInfluxBridge
+""" RFM69Gw Decoder Healthcheck 
+This script checks the health of the RFM69GwDecoder
 """
 import requests
 import configparser
@@ -11,7 +11,7 @@ import configparser
 if __name__ == '__main__':
     # read the config file, so we can check the API port
     config = configparser.ConfigParser()
-    config.read('/app/rfm69gwtoinfluxbridge.conf')
+    config.read('/app/rfm69gw-decoder.conf')
     apiPort = int(config['main']['apiport'])
 
     # fire off an API request to /status
