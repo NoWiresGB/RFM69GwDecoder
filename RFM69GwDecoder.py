@@ -437,6 +437,8 @@ def get_device_class(sensor_data):
         return 'humidity'
     if sensor_data.measurement == 'vbatt':
         return 'voltage'
+    if sensor_data.measurement == 'pressure':
+        return 'pressure'
     return 'None'
 
 
@@ -451,6 +453,8 @@ def get_unit_of_measurement(sensor_data):
         return '%'
     if sensor_data.measurement == 'vbatt':
         return 'mV'
+    if sensor_data.measurement == 'pressure':
+        return 'mbar'
     return 'None'
 
 
