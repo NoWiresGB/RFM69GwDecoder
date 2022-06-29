@@ -281,14 +281,26 @@ def on_message(client, userdata, msg):
     if msg.topic == haStatusTopic:
         # if HA is coming online, then we need to re-publish all of the sensors
         if msg.payload.decode("utf-8")  == 'online':
-            myLog.info('HA is starting; reconfiguring all of the sensors')
+            myLog.info('HA is starting; send previous measurements')
+
+            data_json = {}
             for g in provisionedSensors:
                 for s in provisionedSensors[g]:
                     for m in provisionedSensors[g][s]:
-                        sens = SensorData(g, s, -1, m, 0)
-                        provision_sensor(sens)
+                        sens = SensorData(g, s, -1, m, provisionedSensors[g][s][m]['value'])
+                        try:
+                            data_json[haBaseTopic + '/' + g + '/' + str(s)][m] = provisionedSensors[g][s][m]['value']
+                        except KeyError:
+                            # looks like we're missing the base key
+                            data_json[haBaseTopic + '/' + g + '/' + str(s)] = {}
+                            data_json[haBaseTopic + '/' + g + '/' + str(s)][m] = provisionedSensors[g][s][m]['value']
+
+            # send the last measurement to HA
+            myLog.debug('Sending measurements to HA:\n%s', json.dumps(data_json))
+            for k in data_json:
+                mqtt_client.publish(k, json.dumps(data_json[k]))
         else:
-            myLog.debug('HA is stopping; no need to do anything')
+            myLog.info('HA is stopping; no need to do anything')
     else:
         # parse received payload
         measurements = _parse_mqtt_message(msg.topic, msg.payload.decode('utf-8'))
@@ -478,8 +490,8 @@ def provision_sensor(sensor_data):
     t = 'homeassistant/sensor/' + haBaseTopic + '-' + sensor_data.gw + '-' + str(sensor_data.sensor) + '/' + sensor_data.measurement + '/config'
     myLog.debug('Provisioning sensor in HA (%s):\n%s', t, json.dumps(json_body))
 
-    # send the provisioning message
-    mqtt_client.publish(t, json.dumps(json_body))
+    # send the provisioning message - set the retain flag
+    mqtt_client.publish(t, json.dumps(json_body), 0, True)
 
 
 def _send_sensor_data(sensor_data):
@@ -537,19 +549,26 @@ def _send_sensor_data(sensor_data):
                                     provisionSensor = False
                             except KeyError:
                                 # add the measurement key
-                                provisionedSensors[m.gw][m.sensor][m.measurement] = 1
+                                provisionedSensors[m.gw][m.sensor][m.measurement] = {}
+                                provisionedSensors[m.gw][m.sensor][m.measurement]['status'] = 1
+                                provisionedSensors[m.gw][m.sensor][m.measurement]['value'] = m.value
                     except KeyError:
                         # add the sensor & measurement key
                         provisionedSensors[m.gw][m.sensor] = {}
-                        provisionedSensors[m.gw][m.sensor][m.measurement] = 1
+                        provisionedSensors[m.gw][m.sensor][m.measurement] = {}
+                        provisionedSensors[m.gw][m.sensor][m.measurement]['status'] = 1
+                        provisionedSensors[m.gw][m.sensor][m.measurement]['value'] = m.value
             except KeyError:
                 # add the GW, sensor & measurement key
                 provisionedSensors[m.gw] = {}
                 provisionedSensors[m.gw][m.sensor] = {}
-                provisionedSensors[m.gw][m.sensor][m.measurement] = 1
+                provisionedSensors[m.gw][m.sensor][m.measurement] = {}
+                provisionedSensors[m.gw][m.sensor][m.measurement]['status'] = 1
+                provisionedSensors[m.gw][m.sensor][m.measurement]['value'] = m.value
             
             if provisionSensor:
                 # let's provision the sensor
+                myLog.debug("Couldn't find sensor with parameters %s, %s, %s", m.gw, m.sensor, m.measurement)
                 provision_sensor(m)
             
             try:
