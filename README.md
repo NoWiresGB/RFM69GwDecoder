@@ -1,4 +1,4 @@
-# RFM69GwToInfluxBridge
+# RFM69GwDecoder
 RFM69-Gateway Decoder
 
 ### Generate default config
@@ -11,7 +11,7 @@ docker run --rm zmarkella/rfm69gw-decoder python3 /app/RFM69GwDecoder.py -d > rf
 docker run -d --name rfm69gw-decoder --restart=unless-stopped -v $PWD/rfm69gw-decoder.conf:/etc/rfm69gw-decoder.conf:ro zmarkella/rfm69gw-decoder
 ```
 
-## No more automated builds on Docker hub (but there's a Jenkins serveer!)
+## No more automated builds on Docker hub (but there's a Jenkins server!)
 Currently, there's a Jenkins server that's set up to build both master branch and 'devel' tag, then push it to Docker hub.
 
 Force the tag onto the current commit:
