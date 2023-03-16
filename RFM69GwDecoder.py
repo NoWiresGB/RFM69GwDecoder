@@ -482,16 +482,25 @@ def provision_sensor(sensor_data):
     json_body['device']['manufacturer'] = 'Owltronics'
     json_body['device']['model'] = 'Owlet sensor'
     json_body['device']['name'] = haBaseTopic + '_' + sensor_data.gw + '_' + str(sensor_data.sensor)
-    json_body['device_class'] = get_device_class(sensor_data)
+    if (not sensor_data.measurement == 'trigger'):
+        json_body['device_class'] = get_device_class(sensor_data)
     json_body['enabled_by_default'] = True
     json_body['name'] = sensor_data.gw + '-' + str(sensor_data.sensor) + '-' + sensor_data.measurement
-    json_body['state_class'] = 'measurement'
+    if (not sensor_data.measurement == 'trigger'):
+        json_body['state_class'] = 'measurement'
     json_body['state_topic'] = haBaseTopic + '/' + sensor_data.gw + '/' + str(sensor_data.sensor)
     json_body['unique_id'] = sensor_data.gw + '_' + str(sensor_data.sensor) + '_' + sensor_data.measurement
-    json_body['unit_of_measurement'] = get_unit_of_measurement(sensor_data)
+    if (not sensor_data.measurement == 'trigger'):
+        json_body['unit_of_measurement'] = get_unit_of_measurement(sensor_data)
+    else:
+        json_body['payload_on'] = 1
+        json_body['payload_off'] = 0
     json_body['value_template'] = '{{ value_json.' + sensor_data.measurement + ' }}'
 
-    t = 'homeassistant/sensor/' + haBaseTopic + '-' + sensor_data.gw + '-' + str(sensor_data.sensor) + '/' + sensor_data.measurement + '/config'
+    if (not sensor_data.measurement == 'trigger'):
+        t = 'homeassistant/sensor/' + haBaseTopic + '-' + sensor_data.gw + '-' + str(sensor_data.sensor) + '/' + sensor_data.measurement + '/config'
+    else:
+        t = 'homeassistant/binary_sensor/' + haBaseTopic + '-' + sensor_data.gw + '-' + str(sensor_data.sensor) + '/' + sensor_data.measurement + '/config'
     myLog.debug('Provisioning sensor in HA (%s):\n%s', t, json.dumps(json_body))
 
     # send the provisioning message - set the retain flag
