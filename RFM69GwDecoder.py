@@ -310,6 +310,9 @@ def on_message(client, userdata, msg):
         if measurements is not None:
             _send_sensor_data(measurements)
 
+def s16(value):
+    # turn hex number to signed integers
+    return -(value & 0x8000) | (value & 0x7fff)
 
 def _parse_mqtt_message(topic, payload):
     # this will store the return values
@@ -344,7 +347,7 @@ def _parse_mqtt_message(topic, payload):
             # process the rest of the payload based on sensor type
             if (sensType == NODEFUNC_POWER_SINGLE):
                 powerHex = payload[8:10] + payload[6:8]
-                power = int(powerHex, 16)
+                power = s16(int(powerHex, 16))
                 vrmsHex = payload[12:14] + payload[10:12]
                 vrms = int(vrmsHex, 16) / 10
 
@@ -354,11 +357,11 @@ def _parse_mqtt_message(topic, payload):
                 return rMeas
             elif (sensType == NODEFUNC_POWER_DOUBLE):
                 powerHex = payload[8:10] + payload[6:8]
-                power = int(powerHex, 16)
+                power = s16(int(powerHex, 16))
                 rMeas.append(SensorData(gwMac, radioId, sensType, 'power1', power))
 
                 powerHex = payload[12:14] + payload[10:12]
-                power = int(powerHex, 16)
+                power = s16(int(powerHex, 16))
                 rMeas.append(SensorData(gwMac, radioId, sensType, 'power2', power))
 
                 vrmsHex = payload[16:18] + payload[14:16]
@@ -368,19 +371,19 @@ def _parse_mqtt_message(topic, payload):
                 return rMeas
             elif (sensType == NODEFUNC_POWER_QUAD):
                 powerHex = payload[8:10] + payload[6:8]
-                power = int(powerHex, 16)
+                power = s16(int(powerHex, 16))
                 rMeas.append(SensorData(gwMac, radioId, sensType, 'power1', power))
 
                 powerHex = payload[12:14] + payload[10:12]
-                power = int(powerHex, 16)
+                power = s16(int(powerHex, 16))
                 rMeas.append(SensorData(gwMac, radioId, sensType, 'power2', power))
 
                 powerHex = payload[16:18] + payload[14:16]
-                power = int(powerHex, 16)
+                power = s16(int(powerHex, 16))
                 rMeas.append(SensorData(gwMac, radioId, sensType, 'power3', power))
 
                 powerHex = payload[20:22] + payload[18:20]
-                power = int(powerHex, 16)
+                power = s16(int(powerHex, 16))
                 rMeas.append(SensorData(gwMac, radioId, sensType, 'power4', power))
 
                 vrmsHex = payload[24:26] + payload[22:24]
