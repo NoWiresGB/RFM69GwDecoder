@@ -130,132 +130,31 @@ def readConfig(confFile):
     else:
         config.read('/app/rfm69gw-decoder.conf')
 
-    try:
-        logLevel = config['main']['loglevel']
-    except KeyError:
-        logLevel = 'ERROR'
-        myLog.info('Defaulting to loglevel: ERROR')
+    logLevel = config.get('main', 'loglevel', fallback='ERROR')
+    apiPort = config.getint('main', 'apiport', fallback=5000)
 
-    try:
-        apiPort = int(config['main']['apiport'])
-    except KeyError:
-        apiPort = 5000
-        myLog.info('Defaulting to apiPort: 5000')
+    mqttAddress = config.get('mqtt', 'address', fallback='192.168.0.254')
+    mqttPort = config.getint('mqtt', 'port', fallback=1883)
+    mqttUser = config.get('mqtt', 'user', fallback='mqttuser')
+    mqttPassword = config.get('mqtt', 'password', fallback='mqttpassword')
+    mqttTopic = config.get('mqtt', 'topic', fallback='RFM69Gw/+/+/+')
+    mqttRegex = config.get('mqtt', 'regex', fallback='RFM69Gw/([^/]+)/([^/]+)/([^/]+)')
+    mqttClientId = config.get('mqtt', 'clientId', fallback='RFM69GwToInfluxDBBridge')
 
-    try:
-        mqttAddress = config['mqtt']['address']
-    except KeyError:
-        mqttAddress = '192.168.0.254'
-        myLog.info('Defaulting to MQTT address: 192.168.0.254')
+    influxDbEnabled = config.getboolean('influxdb', 'enabled', fallback=False)
+    influxDbAddress = config.get('influxdb', 'address', fallback='192.168.0.254')
+    influxDbPassword = config.getint('influxdb', 'port', fallback=8086)
+    influxDbUser = config.get('influxdb', 'user', fallback='root')
+    influxDbPassword = config.get('influxdb', 'password', fallback='root')
+    influxDbDatabase = config.get('influxdb', 'database', fallback='home_iot')
 
-    try:
-        mqttPort = int(config['mqtt']['port'])
-    except KeyError:
-        mqttPort = 1883
-        myLog.info('Defaulting to MQTT port: 1883')
+    rebroadcastEnabled = config.getboolean('rebroadcast', 'enabled', fallback=False)
+    rebroadcastSensors = json.loads(config.get('rebroadcast', 'sensor_list', fallback=[]))
+    rebroadcastTopic = config.get('rebroadcast', 'topic', fallback='RFM69Bridge')
 
-    try:
-        mqttUser = config['mqtt']['user']
-    except KeyError:
-        mqttUser = 'mqttuser'
-        myLog.info('Defaulting to MQTT user: mqttuser')
-
-    try:
-        mqttPassword = config['mqtt']['password']
-    except KeyError:
-        mqttPassword = 'mqttpassword'
-        myLog.info('Defaulting to MQTT password: mqttpassword')
-
-    try:
-        mqttTopic = config['mqtt']['topic']
-    except KeyError:
-        mqttTopic = 'RFM69Gw/+/+/+'
-        myLog.info('Defaulting to MQTT topic: RFM69Gw/+/+/+')
-
-    try:
-        mqttRegex = config['mqtt']['regex']
-    except KeyError:
-        mqttRegex = 'RFM69Gw/([^/]+)/([^/]+)/([^/]+)'
-        myLog.info('Defaulting to MQTT regex: RFM69Gw/([^/]+)/([^/]+)/([^/]+)')
-
-    try:
-        mqttClientId = config['mqtt']['clientId']
-    except KeyError:
-        mqttClientId = 'RFM69GwToInfluxDBBridge'
-        myLog.info('Defaulting to MQTT client ID: RFM69GwDecoder')
-
-    try:
-        influxDbEnabled = config['influxdb'].getboolean('enabled')
-    except KeyError:
-        influxDbEnabled = False
-        myLog.info('Defaulting to InfluxDb enabled: False')
-
-    try:
-        influxDbAddress = config['influxdb']['address']
-    except KeyError:
-        influxDbAddress = '192.168.0.254'
-        myLog.info('Defaulting to InfluxDb address: 192.168.0.254')
-
-    try:
-        influxDbPort = int(config['influxdb']['port'])
-    except KeyError:
-        influxDbPort = 8086
-        myLog.info('Defaulting to InfluxDb port: 8086')
-
-    try:
-        influxDbUser = config['influxdb']['user']
-    except KeyError:
-        influxDbUser = 'root'
-        myLog.info('Defaulting to InfluxDb user: root')
-
-    try:
-        influxDbPassword = config['influxdb']['password']
-    except KeyError:
-        influxDbPassword = 'root'
-        myLog.info('Defaulting to InfluxDb password: root')
-
-    try:
-        influxDbDatabase = config['influxdb']['database']
-    except KeyError:
-        influxDbDatabase = 'home_iot'
-        myLog.info('Defaulting to InfluxDb database: home_iot')
-
-    try:
-        rebroadcastEnabled = config['rebroadcast'].getboolean('enabled')
-    except KeyError:
-        rebroadcastEnabled = False
-        myLog.info('Defaulting to rebroadcast enabled: False')
-
-    try:
-        #rebroadcastSensors = config['rebroadcast']['sensor_list']
-        rebroadcastSensors = json.loads(config.get('rebroadcast','sensor_list'))
-    except KeyError:
-        rebroadcastSensors = []
-        myLog.info('Defaulting to rebroadcast sensor list: <empty>')
-
-    try:
-        rebroadcastTopic = config['rebroadcast']['topic']
-    except KeyError:
-        rebroadcastTopic = 'RFM69Bridge'
-        myLog.info('Defaulting to rebroadcast topic: RFM69Bridge')
-
-    try:
-        haIntegrationEnabled = config['ha_integration'].getboolean('enabled')
-    except KeyError:
-        haIntegrationEnabled = False
-        myLog.info('Defaulting to HA integration enabled: False')
-
-    try:
-        haBaseTopic = config['ha_integration']['base_topic']
-    except KeyError:
-        haBaseTopic = 'rfm69gw-decoder'
-        myLog.info('Defaulting to HA integration base topic: rfm69gw-decoder')
-
-    try:
-        haStatusTopic = config['ha_integration']['ha_status_topic']
-    except KeyError:
-        haStatusTopic = 'homeassistant/status'
-        myLog.info('Defaulting to HA status topic: homeassistant/status')
+    haIntegrationEnabled = config.getboolean('ha_integration', 'enabled', fallback=False)
+    haBaseTopic = config.get('ha_integration', 'base_topic', fallback='rfm69gw-decoder')
+    haStatusTopic = config.get('ha_integration', 'ha_status_topic', fallback='homeassistant/status')
 
 
 def on_connect(client, userdata, flags, rc):
